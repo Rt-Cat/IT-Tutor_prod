@@ -1,0 +1,40 @@
+# 1. Environment Secrets & Credentials (CRITICAL SAFETY)
+# Never allow real passwords, database tokens, or JWT keys into source control
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+*.env
+
+# 2. Local Database Binary Volumes (CRITICAL FOR ORACLE)
+# Prevents Git from trying to track gigabytes of Oracle tablespaces, redo logs, and system data blocks
+database/data/
+database/data/*
+
+# 3. Node.js Dependency Tree (Decoupled Containers)
+# Ignores local node_modules in root, backend, and frontend. These are built fresh inside Docker layers.
+node_modules/
+backend/node_modules/
+frontend/node_modules/
+
+# 4. Logs and Diagnostic Dumps
+# Keeps your repository clean from crash dumps and performance profiles
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+logs/
+*.log
+
+# 5. Operating System Specific Files (Windows / macOS artifacts)
+# Blocks hidden cache files generated automatically by your OS
+Thumbs.db
+Desktop.ini
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# 6. IDE / Editor Workspace Configurations
+# Keeps your personal window layouts or extension settings private to your local computer
+.vscode/

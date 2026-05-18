@@ -1,0 +1,74 @@
+version: '3.8'
+
+networks:
+  platform_network:
+    driver: bridge
+
+services:
+  database:
+    image: container-registry.oracle.com/database/free:latest
+    container_name: llm_platform_db
+    ports:
+      - "1521:1521"
+    environment:
+      - ORACLE_PASSWORD=${DB_PASSWORD}
+    volumes:
+      # Data directory maps locally to keep schema tables persistent across compose restarts
+      - ./database/data:/opt/oracle/oradata
+      # Mounts your schema directly to Oracle's post-initialization automatic entry script layer
+      - ./database/schema.sql:/opt/oracle/scripts/startup/schema.sql
+    networks:
+      - platform_network
+    # Native health check to ensure our Node API container waits until Oracle is fully ready
+    healthcheck:
+      test: ["CMD-SHELL", "rc=0; echo 'exit' | sqlplus -L sys/${DB_PASSWORD}@localhost:1521/FREEPDB1 as sysdba || rc=$$?; [ $$rc -eq 0 ]"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 60s
+    restart: always
+
+  # Container 2: Business Logic & Data Repositories (Express API)
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: llm_platform_api
+    ports:
+      - "5000:5000"
+    environment:
+      - NODE_ENV=${NODE_ENV}
+      - PORT=${PORT}
+      - DB_USER=${DB_USER}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - DB_CONNECT_STRING=${DB_CONNECT_STRING} # References the 'database' service container name
+      - JWT_SECRET=${JWT_SECRET}
+    volumes:
+      - ./backend:/usr/src/app
+      - /usr/src/app/node_modules
+    networks:
+      - platform_network
+    depends_on:
+      - database
+    restart: always
+
+  # Container 3: Web Server & Interface Renderer (EJS UI)
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: llm_platform_ui
+    ports:
+      - "3000:3000"                          # Accessible via http://localhost:3000
+    environment:
+      - NODE_ENV=development
+      - PORT=3000
+      - BACKEND_API_URL=http://backend:5000   # Direct container-to-container routing string
+    volumes:
+      - ./frontend:/usr/src/app
+      - /usr/src/app/node_modules
+    networks:
+      - platform_network
+    depends_on:
+      - backend
+    restart: always
