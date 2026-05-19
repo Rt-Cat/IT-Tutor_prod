@@ -1,46 +1,64 @@
 <%- include('../partials/header') %>
 <div class="dashboard-wrapper">
-    <h3><%= userRole === 'moderator' ? 'Модерація Технологій' : 'База Технологій' %></h3>
-    <p class="subtitle">Стек технологій, доступний для створення курсів.</p>
+    <h3><%= userRole === 'moderator' ? 'Модерація Контенту' : 'База Навчального Контенту' %></h3>
+    <p class="subtitle">Ієрархія технологій, курсів та практичних завдань.</p>
 
-    <div style="display: grid; grid-template-columns: 1fr 2fr; gap: 2rem; margin-top: 2rem;">
-        <% if (userRole === 'instructor') { %>
-        <div class="auth-container" style="margin: 0; max-width: 100%; height: fit-content;">
-            <h5>Запропонувати нову технологію</h5>
-            <form action="/instructor/tech/add" method="POST">
-                <label>Назва (напр. Python, React):</label>
-                <input type="text" name="name" required>
-                <label>Категорія:</label>
-                <input type="text" name="category" required placeholder="Backend / Frontend / AI">
-                <button type="submit">Додати в реєстр</button>
-            </form>
-        </div>
+    <div style="margin-top: 2rem;">
+        <% if (tree && tree.length > 0) { %>
+            <% tree.forEach(tech => { %>
+                
+                <div style="background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; margin-bottom: 1.5rem; overflow: hidden;">
+                    <div style="background: rgba(59, 130, 246, 0.1); padding: 1rem 1.5rem; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;">
+                        <h4 style="margin: 0; color: var(--accent);">🛠 Технологія: <%= tech.name %></h4>
+                    </div>
+                    
+                    <div style="padding: 1rem 1.5rem;">
+                        <% if (tech.courses && tech.courses.length > 0) { %>
+                            <% tech.courses.forEach(course => { %>
+                                
+                                <div style="margin-bottom: 1rem; padding-left: 1.5rem; border-left: 2px solid var(--border);">
+                                    <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+                                        <h5 style="margin: 0; font-size: 1.1rem;">📚 Курс: <%= course.title %> 
+                                            <% if (course.isPublished === 0) { %> <span style="color: #fbbf24; font-size: 0.8rem; margin-left: 10px;">(Очікує модерації)</span> <% } %>
+                                        </h5>
+                                        <% if (userRole === 'moderator' && course.isPublished === 0) { %>
+                                            <button style="background: var(--success); padding: 2px 10px; font-size: 0.8rem;">Апрув курсу</button>
+                                        <% } %>
+                                    </div>
+                                    
+                                    <% if (course.tasks && course.tasks.length > 0) { %>
+                                        <div style="padding-left: 1.5rem; margin-top: 0.5rem;">
+                                            <% course.tasks.forEach(task => { %>
+                                                <div style="background: var(--bg-input); padding: 0.75rem; border-radius: 6px; margin-bottom: 0.5rem; display: flex; justify-content: space-between; align-items: center;">
+                                                    <div>
+                                                        <strong><%= task.title %></strong>
+                                                        <span style="font-size: 0.8rem; color: var(--text-muted); margin-left: 10px;">[<%= task.difficulty %>]</span>
+                                                        <% if (task.isFree === 1) { %> <span style="color: var(--success); font-size: 0.8rem; margin-left: 5px;">(FREE)</span> <% } %>
+                                                    </div>
+                                                    <% if (userRole === 'moderator') { %>
+                                                        <button style="background: transparent; border: 1px solid var(--success); color: var(--success); padding: 2px 8px; font-size: 0.8rem;">Затвердити таску</button>
+                                                    <% } %>
+                                                </div>
+                                            <% }) %>
+                                        </div>
+                                    <% } else { %>
+                                        <p style="padding-left: 1.5rem; color: var(--text-muted); font-size: 0.9rem;">В цьому курсі ще немає завдань.</p>
+                                    <% } %>
+                                </div>
+
+                            <% }) %>
+                        <% } else { %>
+                            <p style="color: var(--text-muted);">До цієї технології ще не додано жодного курсу.</p>
+                        <% } %>
+                    </div>
+                </div>
+            <% }) %>
+        <% } else { %>
+            <div style="text-align: center; padding: 3rem; background: var(--bg-card); border-radius: 8px; border: 1px dashed var(--border);">
+                <h4 style="color: var(--text-muted);">Дерево контенту порожнє</h4>
+                <p>Не знайдено жодної технології або курсу, доступних для вашої ролі.</p>
+            </div>
         <% } %>
-
-            <div <% if (typeof userRole !== 'undefined' && userRole === 'moderator') { %> style="grid-column: span 2;" <% } %>>
-                <thead>
-                    <tr>
-                        <th>Назва</th>
-                        <th>Категорія</th>
-                        <th>Дії</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr>
-                        <td><strong>Python Core</strong></td>
-                        <td>Backend</td>
-                        <td>
-                            <% if (userRole === 'moderator') { %>
-                                <button style="background: var(--success); padding: 5px 10px;">Затвердити (Approve)</button>
-                                <button style="background: var(--error); padding: 5px 10px;">Відхилити</button>
-                            <% } else { %>
-                                <span style="color: var(--text-muted);">Очікує модерації</span>
-                            <% } %>
-                        </td>
-                    </tr>
-                </tbody>
-            </table>
-        </div>
     </div>
 </div>
 <%- include('../partials/footer') %>

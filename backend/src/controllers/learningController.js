@@ -2,6 +2,8 @@ const techRepo = require('../repositories/technologyRepository');
 const courseRepo = require('../repositories/courseRepository');
 const taskRepo = require('../repositories/taskRepository');
 
+const db = require('../config/db');
+
 class LearningController {
   // --- Technologies Execution Handlers ---
   async getTechnologies(req, res, next) {
@@ -90,6 +92,81 @@ class LearningController {
       await taskRepo.update(id, { title, taskDescription, difficulty, estimatedMinutes, isFree, isPublished, sortOrder });
       res.json({ message: 'Coding challenge configurations updated.' });
     } catch (err) { next(err); }
+  }
+
+  // Отримання повного або відфільтрованого дерева контенту
+  async getContentTree(req, res, next) {
+    try {
+      const role = req.user.role;
+      const userId = req.user.userId;
+
+      // Базовий SQL для отримання всієї ієрархії
+      let sql = `
+        SELECT 
+          t.TechnologyID, t.Name AS TechName,
+          c.CourseID, c.Title AS CourseTitle, c.IsPublished AS CoursePublished,
+          ts.TaskID, ts.Title AS TaskTitle, ts.Difficulty, ts.IsFree
+        FROM Technologies t
+        LEFT JOIN Courses c ON t.TechnologyID = c.TechnologyID
+        LEFT JOIN Tasks ts ON c.CourseID = ts.CourseID
+      `;
+
+      // Фільтрація для інструктора (наприклад, тільки опубліковані курси та безкоштовні таски, 
+      // або те, що належить до його підписки. Для прикладу - фільтруємо за IsPublished).
+      // Модератор бачить усе без умов WHERE.
+      if (role === 'instructor') {
+        sql += ` WHERE c.IsPublished = 1 OR c.IsPublished IS NULL`; 
+        // Додайте тут логіку перевірки підписки інструктора, якщо потрібно
+      }
+
+      sql += ` ORDER BY t.Name, c.Title, ts.SortOrder`;
+
+      const result = await db.execute(sql, {});
+      
+      // Форматування плоского SQL-результату у JSON Дерево
+      const tree = {};
+      
+      result.rows.forEach(row => {
+        // 1. Рівень: Технологія
+        if (!tree[row.TECHNOLOGYID]) {
+          tree[row.TECHNOLOGYID] = {
+            id: row.TECHNOLOGYID,
+            name: row.TECHNAME,
+            courses: {}
+          };
+        }
+        
+        // 2. Рівень: Курс
+        if (row.COURSEID && !tree[row.TECHNOLOGYID].courses[row.COURSEID]) {
+          tree[row.TECHNOLOGYID].courses[row.COURSEID] = {
+            id: row.COURSEID,
+            title: row.COURSETITLE,
+            isPublished: row.COURSEPUBLISHED,
+            tasks: []
+          };
+        }
+
+        // 3. Рівень: Завдання
+        if (row.TASKID) {
+          tree[row.TECHNOLOGYID].courses[row.COURSEID].tasks.push({
+            id: row.TASKID,
+            title: row.TASKTITLE,
+            difficulty: row.DIFFICULTY,
+            isFree: row.ISFREE
+          });
+        }
+      });
+
+      // Перетворюємо об'єкти в масиви для зручності фронтенду
+      const finalTree = Object.values(tree).map(tech => ({
+        ...tech,
+        courses: Object.values(tech.courses)
+      }));
+
+      res.json(finalTree);
+    } catch (err) {
+      next(err);
+    }
   }
 }
 

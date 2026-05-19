@@ -15,9 +15,12 @@
         <select name="role">
             <option value="student">Студент (Student)</option>
             <option value="instructor">Викладач (Instructor)</option>
-            <option value="moderator">Модератор (Moderator)</option>
+            <option value="moderator">Модератор (Заявка на модерацію)</option>
+    
+            <% if (typeof adminExists !== 'undefined' && !adminExists) { %>
+                <option value="admin">Адміністратор (Початкове розгортання)</option>
+            <% } %>
         </select>
-        
         <button type="submit">Створити обліковий запис</button>
     </form>
     <p style="font-size: 0.9rem; text-align: center; margin-top: 1rem;">

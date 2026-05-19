@@ -24,14 +24,70 @@ app.use(express.static('./src/public'));
 
 // Хелпер для клієнтських HTTP-запитів до Бекенду
 const makeRequest = async (endpoint, method = 'GET', body = null, token = null) => {
-  const headers = { 'Content-Type': 'application/json' };
-  if (token) headers['Authorization'] = `Bearer ${token}`;
-  
-  const config = { method, headers };
-  if (body) config.body = JSON.stringify(body);
+  try {
+    const headers = { 'Content-Type': 'application/json' };
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+    
+    const config = { method, headers };
+    if (body) config.body = JSON.stringify(body);
 
-  const res = await fetch(`${API_URL}${endpoint}`, config);
-  return await res.json();
+    const res = await fetch(`${API_URL}${endpoint}`, config);
+    
+    // 1. Перевіряємо, чи бекенд дійсно повернув JSON
+    const contentType = res.headers.get("content-type");
+    if (contentType && contentType.includes("application/json")) {
+      return await res.json();
+    } else {
+      // Якщо бекенд повернув 404 (HTML), просто повертаємо порожній безпечний об'єкт
+      console.warn(`[API Warning]: Ендпоінт ${endpoint} ще не готовий або повернув HTML.`);
+      return { error: 'API route not ready', fallback: true };
+    }
+  } catch (error) {
+    // 2. Якщо бекенд взагалі вимкнений або впав (Network Error)
+    console.error(`[Network Error] Неможливо достукатися до ${endpoint}:`, error.message);
+    return { error: 'Backend unreachable', fallback: true };
+  }
+};
+
+// =========================================================================
+// MIDDLEWARE ДЛЯ КОНТРОЛЮ ДОСТУПУ (RBAC - Role Based Access Control)
+// =========================================================================
+const authorize = (allowedRoles) => {
+  return (req, res, next) => {
+    const token = req.cookies.token;
+    const userRole = req.cookies.role;
+
+    // 1. Якщо немає токена взагалі — перекидаємо на логін
+    if (!token || !userRole) {
+      return res.redirect('/auth/login');
+    }
+
+    // 2. Якщо роль користувача є в списку дозволених — пускаємо далі
+    if (allowedRoles.includes(userRole)) {
+      return next();
+    }
+
+    // 3. Якщо ролі немає в списку — блокуємо доступ (Красива сторінка 403)
+    return res.status(403).send(`
+      <!DOCTYPE html>
+      <html lang="uk">
+      <head>
+          <title>403 - Доступ заборонено</title>
+          <link rel="stylesheet" href="/css/styles.css">
+      </head>
+      <body style="display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0;">
+          <div style="text-align: center; background: var(--bg-card); padding: 3rem; border-radius: 8px; border: 1px solid var(--error);">
+              <h1 style="color: var(--error); font-size: 4rem; margin: 0;">403</h1>
+              <h3>Помилка доступу</h3>
+              <p style="color: var(--text-muted); margin-bottom: 2rem;">
+                  Ваш рівень доступу (<b>${userRole}</b>) не дозволяє переглядати цю сторінку.
+              </p>
+              <a href="/" class="btn">Повернутися на головну</a>
+          </div>
+      </body>
+      </html>
+    `);
+  };
 };
 
 // =========================================================================
@@ -57,16 +113,30 @@ app.get('/auth/login', redirectIfAuthenticated, (req, res) => {
   res.render('auth/login', { error: null, hideNav: true });
 });
 
-app.get('/auth/register', redirectIfAuthenticated, (req, res) => {
-  res.render('auth/register', { error: null, hideNav: true });
+app.get('/auth/register', redirectIfAuthenticated, async (req, res) => {
+  // Робимо запит до нашого нового ендпоінту
+  const status = await makeRequest('/auth/admin-exists', 'GET');
+  const adminExists = status && status.exists ? true : false;
+
+  res.render('auth/register', { 
+    error: null, 
+    hideNav: true,
+    adminExists: adminExists // Передаємо статус у EJS
+  });
 });
 
 // Обробка реєстрації (POST)
 app.post('/auth/register', async (req, res) => {
   const data = await makeRequest('/auth/register', 'POST', req.body);
   if (data.error) {
-    // Якщо виникла помилка, перерендерюємо сторінку з повідомленням і ховаємо nav bar
-    return res.render('auth/register', { error: data.error, hideNav: true });
+    const status = await makeRequest('/auth/admin-exists', 'GET');
+    const adminExists = status && status.exists ? true : false;
+    
+    return res.render('auth/register', { 
+      error: data.error, 
+      hideNav: true, 
+      adminExists: adminExists 
+    });
   }
   res.redirect('/auth/login');
 });
@@ -101,10 +171,15 @@ app.get('/auth/logout', (req, res) => {
 // =========================================================================
 // СТУДЕНТСЬКИЙ ІНТЕРФЕЙС (STUDENT)
 // =========================================================================
-app.get('/student/dashboard', async (req, res) => {
+app.get('/student/dashboard', authorize(['student', 'instructor', 'moderator', 'admin']), async (req, res) => {
   const token = req.cookies.token;
-  const courses = await makeRequest('/learning/courses', 'GET', null, token);
-  res.render('student/dashboard', { user: req.cookies.role, courses });
+  // Звертаємось до бекенду за даними студента
+  const data = await makeRequest('/student/dashboard', 'GET', null, token);
+  
+  res.render('student/dashboard', { 
+    progress: data.myProgress || [], 
+    scoreboard: data.scoreboard || [] 
+  });
 });
 
 app.get('/student/workspace', async (req, res) => {
@@ -123,42 +198,74 @@ app.get('/student/profiles', async (req, res) => {
 });
 
 // =========================================================================
-// АДМІНІСТРАТИВНА ПАНЕЛЬ (ADMIN)
+// СТУДЕНТСЬКИЙ ІНТЕРФЕЙС (Доступно всім авторизованим користувачам)
 // =========================================================================
-app.get('/admin/main', async (req, res) => {
-  const token = req.cookies.token;
-  const dashboardData = await makeRequest('/dashboard/metrics', 'GET', null, token);
-  res.render('admin/main', { metrics: dashboardData.stats || {}, users: dashboardData.userManagementList || [] });
+app.get('/student/workspace', authorize(['student', 'instructor', 'moderator', 'admin']), async (req, res) => {
+  res.render('student/workspace', { taskId: 'Загальна консоль валідації' });
 });
 
-//=========================================================================
-// ІНСТРУКТОР: Технології 
-//=========================================================================
-app.get('/instructor/tech', async (req, res) => {
+app.get('/student/profiles', authorize(['student', 'instructor', 'moderator', 'admin']), async (req, res) => {
   const token = req.cookies.token;
-  const techData = await makeRequest('/learning/technologies', 'GET', null, token);
-  res.render('instructor/tech', { technologies: techData || [] });
+  const profilesData = await makeRequest('/profiles', 'GET', null, token);
+  res.render('student/profiles', { profiles: profilesData || [] });
 });
 
-app.get('/instructor/courses', async (req, res) => {
+// =========================================================================
+// ІНТЕРФЕЙС ІНСТРУКТОРА (Доступно Інструктору, Модератору та Адміну)
+// =========================================================================
+app.get('/instructor/tech', authorize(['instructor', 'moderator', 'admin']), async (req, res) => {
   const token = req.cookies.token;
-  // Тут ви можете зробити запит до бекенду: makeRequest('/learning/tasks', 'GET', null, token)
-  res.render('instructor/courses', { tasks: [] }); 
+  
+  // Робимо запит за деревом контенту
+  const treeData = await makeRequest('/learning/tree', 'GET', null, token);
+  
+  // ВАЖЛИВО: Передаємо саме змінну "tree" у шаблон!
+  // Якщо сталась помилка мережі (treeData.error), передаємо порожній масив.
+  res.render('instructor/tech', { 
+      tree: (treeData && !treeData.error) ? treeData : [] 
+  });
 });
 
-app.get('/instructor/tasks', async (req, res) => {
-  const token = req.cookies.token;
-  // Тут ви можете зробити запит до бекенду: makeRequest('/learning/tasks', 'GET', null, token)
-  res.render('instructor/tasks', { tasks: [] }); 
+app.get('/instructor/courses', authorize(['instructor', 'moderator', 'admin']), async (req, res) => {
+  res.render('instructor/courses');
 });
 
-//=========================================================================
-// МОДЕРАТОР: Головна аналітична панель та Апрув змін
-//=========================================================================
-app.get('/moderator/main', async (req, res) => {
+app.get('/instructor/tasks', authorize(['instructor', 'moderator', 'admin']), async (req, res) => {
+  res.render('instructor/tasks');
+});
+
+// =========================================================================
+// ПАНЕЛЬ МОДЕРАТОРА (Доступно тільки Модератору та Адміну)
+// =========================================================================
+app.get('/moderator/main', authorize(['moderator', 'admin']), async (req, res) => {
   const token = req.cookies.token;
   const dashboardData = await makeRequest('/dashboard/metrics', 'GET', null, token);
   res.render('moderator/main', { metrics: dashboardData.subscriptions || {}, activeSessions: dashboardData.activeSessions || 0 });
 });
 
+app.get('/moderator/subscriptions', authorize(['moderator', 'admin']), async (req, res) => {
+  res.render('moderator/subscriptions');
+});
+
+// =========================================================================
+// АДМІНІСТРАТИВНА ПАНЕЛЬ (Строго тільки Адмін)
+// =========================================================================
+app.get('/admin/main', authorize(['admin']), async (req, res) => {
+  const token = req.cookies.token;
+  const dashboardData = await makeRequest('/dashboard/metrics', 'GET', null, token);
+  res.render('admin/main', { metrics: dashboardData.stats || {}, users: dashboardData.userManagementList || [] });
+});
+
+app.get('/admin/users', authorize(['admin']), async (req, res) => {
+  res.render('admin/users');
+});
+
+app.post('/admin/users/register', authorize(['admin']), async (req, res) => {
+  const token = req.cookies.token;
+  // Відправляємо запит на захищений бекенд-маршрут
+  await makeRequest('/dashboard/users', 'POST', req.body, token);
+  res.redirect('/admin/users');
+});
+
 app.listen(PORT, () => console.log(`[Frontend Engine Live]: Interface accessible via http://localhost:${PORT}`));
+
