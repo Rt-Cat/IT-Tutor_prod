@@ -1,0 +1,47 @@
+<%- include('../partials/header') %>
+<div class="dashboard-wrapper">
+    <h3>Аналітична панель адміністратора (Global Dashboard)</h3>
+    <p class="subtitle">Системні метрики виділених ресурсів та токенів, агреговані з бази Oracle.</p>
+    
+    <div class="courses-grid" style="margin-bottom: 3rem;">
+        <div class="course-card" style="background: linear-gradient(135deg, #1e293b, #0f172a);">
+            <h5>Загальна кількість користувачів</h5>
+            <h2 style="font-size: 2.5rem; color: var(--accent); margin: 0.5rem 0;"><%= metrics.TOTAL_USERS || 0 %></h2>
+            <p style="font-size: 0.8rem; color: var(--text-muted);">Зареєстровано у схемі AI_MENTOR</p>
+        </div>
+        <div class="course-card" style="background: linear-gradient(135deg, #064e3b, #022c22);">
+            <h5>Активні ШІ-Сесії</h5>
+            <h2 style="font-size: 2.5rem; color: var(--success); margin: 0.5rem 0;"><%= metrics.ACTIVE_AI_SESSIONS || 0 %></h2>
+            <p style="font-size: 0.8rem; color: var(--text-muted);">Викликів обробки токенів за добу</p>
+        </div>
+    </div>
+
+    <h4>Черга управління користувачами (User Management List)</h4>
+    <table>
+        <thead>
+            <tr>
+                <th>UserID</th>
+                <th>Електронна пошта</th>
+                <th>Роль безпеки</th>
+                <th>Статус акаунту</th>
+            </tr>
+        </thead>
+        <tbody>
+            <% if (typeof users !== 'undefined' && users.length > 0) { %>
+                <% users.forEach(usr => { %>
+                    <tr>
+                        <td>#<%= usr.USERID %></td>
+                        <td><strong><%= usr.EMAIL %></strong></td>
+                        <td><span style="background: var(--bg-input); padding: 4px 8px; border-radius: 4px;"><%= usr.ROLE %></span></td>
+                        <td><%= usr.ISACTIVE === 1 ? '✅ Активний (Active)' : '🛑 Заблокований' %></td>
+                    </tr>
+                <% }) %>
+            <% } else { %>
+                <tr>
+                    <td colspan="4" style="text-align: center; color: var(--text-muted);">Дані про користувачів платформи відсутні.</td>
+                </tr>
+            <% } %>
+        </tbody>
+    </table>
+</div>
+<%- include('../partials/footer') %>

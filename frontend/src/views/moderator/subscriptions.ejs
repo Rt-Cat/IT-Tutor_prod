@@ -1,0 +1,39 @@
+<%- include('../partials/header') %>
+<div class="dashboard-wrapper">
+    <h3>Управління Підписками Користувачів</h3>
+    <p class="subtitle">Моніторинг лімітів (DailyLLMLimit) та видача PRO доступу.</p>
+
+    <table>
+        <thead>
+            <tr>
+                <th>UserID</th>
+                <th>Поточний План</th>
+                <th>Дата закінчення</th>
+                <th>Статус</th>
+                <th>Дії модератора</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>Студент #12</td>
+                <td><span style="background: #374151; padding: 3px 8px; border-radius: 4px;">FREE</span></td>
+                <td>Безліміт</td>
+                <td>Активна</td>
+                <td>
+                    <button style="background: #8b5cf6; padding: 5px 10px;">Апгрейд до PRO</button>
+                </td>
+            </tr>
+            <tr>
+                <td>Студент #45</td>
+                <td><span style="background: #8b5cf6; color: white; padding: 3px 8px; border-radius: 4px;">PRO</span></td>
+                <td>12.06.2026</td>
+                <td>Очікує оплати</td>
+                <td>
+                    <button style="background: var(--success); padding: 5px 10px;">Підтвердити оплату</button>
+                    <button style="background: var(--error); padding: 5px 10px;">Скасувати</button>
+                </td>
+            </tr>
+        </tbody>
+    </table>
+</div>
+<%- include('../partials/footer') %>

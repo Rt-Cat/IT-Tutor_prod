@@ -1,0 +1,23 @@
+<%- include('../partials/header') %>
+<div class="dashboard-wrapper">
+    <h3>Кабінет студента</h3>
+    <p>Ваша системна роль: <strong><%= user %></strong></p>
+    
+    <h4>Доступні освітні курси:</h4>
+    <div class="courses-grid">
+        <% if (Array.isArray(courses)) { %>
+            <% courses.forEach(course => { %>
+                <div class="course-card">
+                    <h5><%= course.TITLE %></h5>
+                    <p><%= course.DESCRIPTION %></p>
+                    <span>Складність: <%= course.LEVELTYPE %></span>
+                    <br><br>
+                    <a href="/student/workspace/<%= course.COURSEID %>" class="btn">Відкрити середовище завдань</a>
+                </div>
+            <% }) %>
+        <% } else { %>
+            <p>Наразі немає опублікованих курсів.</p>
+        <% } %>
+    </div>
+</div>
+<%- include('../partials/footer') %>

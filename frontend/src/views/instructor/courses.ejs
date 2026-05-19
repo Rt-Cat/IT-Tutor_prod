@@ -1,0 +1,46 @@
+<%- include('../partials/header') %>
+<div class="dashboard-wrapper">
+    <h3>Управління Курсами</h3>
+    
+    <% if (userRole === 'instructor') { %>
+        <div style="background: var(--bg-card); padding: 1.5rem; border-radius: 8px; border: 1px solid var(--border); margin-bottom: 2rem;">
+            <h5>Створити новий курс</h5>
+            <form action="/instructor/courses/add" method="POST" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                <input type="text" name="title" placeholder="Назва курсу" required>
+                <select name="levelType">
+                    <option value="beginner">Beginner (Початковий)</option>
+                    <option value="intermediate">Intermediate (Середній)</option>
+                    <option value="advanced">Advanced (Складний)</option>
+                </select>
+                <textarea name="description" placeholder="Короткий опис" style="grid-column: span 2;"></textarea>
+                <button type="submit" style="grid-column: span 2;">Відправити на модерацію</button>
+            </form>
+        </div>
+    <% } %>
+
+    <h4>Каталог Курсів</h4>
+    <table>
+        <thead>
+            <tr>
+                <th>Назва курсу</th>
+                <th>Складність</th>
+                <th>Статус публікації</th>
+                <th>Дії</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td><strong>Вступ до ООП в Python</strong></td>
+                <td>beginner</td>
+                <td><span style="color: #fbbf24;">Очікує перевірки</span></td>
+                <td>
+                    <a href="/instructor/tasks" class="btn" style="padding: 5px 10px; background: #4b5563;">Завдання</a>
+                    <% if (userRole === 'moderator') { %>
+                        <button style="background: var(--success); padding: 5px 10px;">Опублікувати</button>
+                    <% } %>
+                </td>
+            </tr>
+        </tbody>
+    </table>
+</div>
+<%- include('../partials/footer') %>

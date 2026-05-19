@@ -1,0 +1,27 @@
+<%- include('../partials/header') %>
+<div class="workspace-container">
+    <h3>AI Код-Середовище (Workspace)</h3>
+    <p>Завдання ID: <strong><%= taskId %></strong></p>
+    
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; margin-top: 1.5rem;">
+        <div>
+            <h5>Введіть ваше рішення (Python / JavaScript):</h5>
+            <textarea id="codeEditor" class="editor-area" placeholder="def process_data(matrix):
+    # Введіть ваш код тут
+    pass" style="width: 100%; min-height: 350px; box-sizing: border-bottom-width; font-size: 1.1rem; line-height: 1.5; border-radius: 6px; padding: 1rem;"></textarea>
+            <br><br>
+            <button id="submitCodeBtn" onclick="submitCodeForEvaluation('<%= taskId %>')" style="width: 100%;">Відправити на перевірку</button>
+        </div>
+
+        <div>
+            <h5>Вердикт та аналітика AI-Ментора:</h5>
+            <div id="feedbackResult" class="feedback-box">
+                <p id="feedbackText" style="line-height: 1.6; font-size: 1rem; white-space: pre-line;"></p>
+            </div>
+            <div id="workspaceHelper" style="color: var(--text-muted); padding: 1rem; border: 1px dashed var(--border); border-radius: 6px; margin-top: 1rem;">
+                <small>⚠️ <strong>Правило валідації:</strong> Будь-яке вихідне значення математичних параметрів та координат, що перевищує межу 1.0, буде розпізнано системою як критична помилка введення даних.</small>
+            </div>
+        </div>
+    </div>
+</div>
+<%- include('../partials/footer') %>

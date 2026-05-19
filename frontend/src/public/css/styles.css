@@ -1,0 +1,91 @@
+:root {
+    --bg-main: #121318;
+    --bg-card: #1a1c23;
+    --bg-input: #252833;
+    --accent: #3b82f6;
+    --accent-hover: #2563eb;
+    --text-main: #f3f4f6;
+    --text-muted: #9ca3af;
+    --border: #2d313f;
+    --success: #10b981;
+    --error: #ef4444;
+}
+
+body {
+    margin: 0;
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    background-color: var(--bg-main);
+    color: var(--text-main);
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+}
+
+header {
+    background-color: var(--bg-card);
+    border-bottom: 1px solid var(--border);
+    padding: 1rem 2rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+header h2 { margin: 0; font-size: 1.3rem; color: var(--accent); }
+nav a { color: var(--text-muted); text-decoration: none; margin-left: 1.5rem; transition: color 0.2s; }
+nav a:hover, nav a.active { color: var(--text-main); }
+
+main { flex: 1; padding: 2rem; max-width: 1200px; margin: 0 auto; width: -webkit-fill-available; }
+
+footer {
+    text-align: center;
+    padding: 1.5rem;
+    border-top: 1px solid var(--border);
+    color: var(--text-muted);
+    font-size: 0.9rem;
+    background-color: var(--bg-card);
+}
+
+.auth-container, .dashboard-wrapper, .workspace-container {
+    background-color: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 2rem;
+}
+
+.auth-container { max-width: 400px; margin: 4rem auto; }
+form { display: flex; flex-direction: column; gap: 1rem; }
+label { font-size: 0.9rem; color: var(--text-muted); }
+input, select, textarea {
+    background-color: var(--bg-input);
+    border: 1px solid var(--border);
+    color: var(--text-main);
+    padding: 0.75rem;
+    border-radius: 6px;
+    font-size: 1rem;
+}
+input:focus, select:focus, textarea:focus { border-color: var(--accent); outline: none; }
+
+button, .btn {
+    background-color: var(--accent);
+    color: white;
+    padding: 0.75rem;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 600;
+    text-decoration: none;
+    text-align: center;
+    transition: background 0.2s;
+}
+button:hover, .btn:hover { background-color: var(--accent-hover); }
+
+.error-msg { background: rgba(239, 68, 68, 0.1); border: 1px solid var(--error); color: var(--error); padding: 0.75rem; border-radius: 6px; margin: 0 0 1rem 0; }
+.courses-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 1.5rem; margin-top: 1.5rem; }
+.course-card { background: var(--bg-main); border: 1px solid var(--border); border-radius: 8px; padding: 1.5rem; display: flex; flex-direction: column; justify-content: space-between; }
+
+table { width: 100%; border-collapse: collapse; margin-top: 1.5rem; }
+th, td { padding: 1rem; text-align: left; border-bottom: 1px solid var(--border); }
+th { background-color: var(--bg-main); color: var(--text-muted); font-weight: 600; }
+
+.editor-area { font-family: 'Courier New', Courier, monospace; background: #0d0e12; color: #34d399; min-height: 250px; }
+.feedback-box { background: var(--bg-main); border-left: 4px solid var(--accent); padding: 1rem; margin-top: 1.5rem; border-radius: 0 6px 6px 0; display: none; }

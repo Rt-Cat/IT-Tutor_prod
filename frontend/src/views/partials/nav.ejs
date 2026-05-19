@@ -1,0 +1,33 @@
+<% if (typeof userRole !== 'undefined' && userRole) { %>
+<nav class="main-navigation" style="display: flex; gap: 1rem; align-items: center; width: 100%;">
+    
+    <% if (userRole === 'student' || userRole === 'instructor') { %>
+        <a href="/student/workspace">Робоче оточення (Workspace)</a>
+        <a href="/student/profiles">Конфігурації ШІ</a>
+    <% } %>
+
+    <% if (userRole === 'instructor' || userRole === 'moderator') { %>
+        <a href="/instructor/tech" style="border-left: 1px solid var(--border); padding-left: 10px; color: var(--accent);">
+            <%= userRole === 'moderator' ? 'Модерація технологій' : 'Управління технологіями' %>
+        </a>
+        <a href="/instructor/courses" style="color: var(--accent);">Курси та завдання</a>
+    <% } %>
+
+    <% if (userRole === 'moderator') { %>
+        <a href="/moderator/main" style="border-left: 1px solid var(--border); padding-left: 10px; color: #10b981; font-weight: 600;">Панель аналітики</a>
+        <a href="/moderator/subscriptions" style="color: #10b981;">Управління підписками</a>
+    <% } %>
+
+    <% if (userRole === 'admin') { %>
+        <a href="/admin/main" style="color: #ef4444; font-weight: 600;">Глобальні метрики</a>
+        <a href="/admin/users" style="color: #ef4444;">Користувачі</a>
+    <% } %>
+
+    <div style="margin-left: auto; display: flex; align-items: center; gap: 10px;">
+        <span style="font-size: 0.85rem; color: var(--text-muted);">
+            Роль: <span style="color: white; background: var(--bg-input); padding: 2px 6px; border-radius: 4px;"><%= userRole %></span>
+        </span>
+        <a href="/auth/logout" style="color: var(--error); font-weight: 600; text-decoration: none; border: 1px solid rgba(239, 68, 68, 0.2); padding: 4px 10px; border-radius: 4px;">Вийти</a>
+    </div>
+</nav>
+<% } %>

@@ -1,0 +1,30 @@
+<%- include('../partials/header') %>
+<div class="dashboard-wrapper">
+    <h3>Управління правами та рівнями доступу</h3>
+    <p class="subtitle">Тут ви можете примусово змінити роль користувача або призупинити дію ліцензії.</p>
+    
+    <div style="max-width: 500px; background: var(--bg-card); border: 1px solid var(--border); padding: 2rem; border-radius: 8px; margin-top: 2rem;">
+        <h5>Змінити стан облікового запису</h5>
+        <form action="/admin/users/update" method="POST">
+            <label>ID Цільового користувача (UserID):</label>
+            <input type="number" name="userId" required placeholder="Наприклад: 1">
+            
+            <label>Призначити нову роль доступу:</label>
+            <select name="role">
+                <option value="student">Студент (Student)</option>
+                <option value="instructor">Викладач (Instructor)</option>
+                <option value="moderator">Модератор (Moderator)</option>
+                <option value="admin">Адміністратор (Admin)</option>
+            </select>
+            
+            <label>Статус авторизації:</label>
+            <select name="isActive">
+                <option value="1">Дозволити доступ (Active)</option>
+                <option value="0">Заблокувати акаунт (Suspended)</option>
+            </select>
+            
+            <button type="submit" style="background-color: #ef4444;">Застосувати зміни у базі</button>
+        </form>
+    </div>
+</div>
+<%- include('../partials/footer') %>

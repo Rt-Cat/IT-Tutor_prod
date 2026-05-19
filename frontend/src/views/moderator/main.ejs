@@ -1,0 +1,25 @@
+<%- include('../partials/header') %>
+<div class="dashboard-wrapper">
+    <h3>Панель Модератора (Moderation Queue)</h3>
+    <p class="subtitle">Перевірка та затвердження навчального контенту, створеного інструкторами.</p>
+
+    <div class="courses-grid" style="margin-bottom: 2rem;">
+        <div class="course-card" style="background: rgba(245, 158, 11, 0.1); border-color: #f59e0b;">
+            <h5 style="color: #f59e0b;">Курси на перевірку</h5>
+            <h2 style="font-size: 2rem; margin: 0.5rem 0;">3</h2>
+            <a href="/instructor/courses" style="color: #f59e0b; text-decoration: underline;">Перейти до курсів</a>
+        </div>
+        <div class="course-card" style="background: rgba(16, 185, 129, 0.1); border-color: #10b981;">
+            <h5 style="color: #10b981;">Технології на перевірку</h5>
+            <h2 style="font-size: 2rem; margin: 0.5rem 0;">1</h2>
+            <a href="/instructor/tech" style="color: #10b981; text-decoration: underline;">Перейти до технологій</a>
+        </div>
+    </div>
+
+    <h4>Останні активності інструкторів</h4>
+    <div style="background: var(--bg-card); padding: 1.5rem; border: 1px solid var(--border); border-radius: 8px;">
+        <p><strong>[12:45]</strong> Інструктор #5 створив нове завдання у курсі "Python Core". <a href="/instructor/tasks" style="color: var(--accent);">Перевірити</a></p>
+        <p><strong>[10:30]</strong> Інструктор #2 додав технологію "Docker". <a href="/instructor/tech" style="color: var(--accent);">Перевірити</a></p>
+    </div>
+</div>
+<%- include('../partials/footer') %>

@@ -1,0 +1,46 @@
+<%- include('../partials/header') %>
+<div class="dashboard-wrapper">
+    <h3><%= userRole === 'moderator' ? 'Модерація Технологій' : 'База Технологій' %></h3>
+    <p class="subtitle">Стек технологій, доступний для створення курсів.</p>
+
+    <div style="display: grid; grid-template-columns: 1fr 2fr; gap: 2rem; margin-top: 2rem;">
+        <% if (userRole === 'instructor') { %>
+        <div class="auth-container" style="margin: 0; max-width: 100%; height: fit-content;">
+            <h5>Запропонувати нову технологію</h5>
+            <form action="/instructor/tech/add" method="POST">
+                <label>Назва (напр. Python, React):</label>
+                <input type="text" name="name" required>
+                <label>Категорія:</label>
+                <input type="text" name="category" required placeholder="Backend / Frontend / AI">
+                <button type="submit">Додати в реєстр</button>
+            </form>
+        </div>
+        <% } %>
+
+            <div <% if (typeof userRole !== 'undefined' && userRole === 'moderator') { %> style="grid-column: span 2;" <% } %>>
+                <thead>
+                    <tr>
+                        <th>Назва</th>
+                        <th>Категорія</th>
+                        <th>Дії</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>Python Core</strong></td>
+                        <td>Backend</td>
+                        <td>
+                            <% if (userRole === 'moderator') { %>
+                                <button style="background: var(--success); padding: 5px 10px;">Затвердити (Approve)</button>
+                                <button style="background: var(--error); padding: 5px 10px;">Відхилити</button>
+                            <% } else { %>
+                                <span style="color: var(--text-muted);">Очікує модерації</span>
+                            <% } %>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+<%- include('../partials/footer') %>

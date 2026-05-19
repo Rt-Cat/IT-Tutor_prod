@@ -1,40 +1,85 @@
-const userRepository = require('../repositories/userRepository');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const db = require('../config/db');
 
-const register = async (req, res, next) => {
-  try {
-    const { email, password, role } = req.body;
-    if (!email || !password) return res.status(400).json({ error: 'Required attributes missing.' });
+class AuthController {
+  
+  // ==========================================
+  // РЕЄСТРАЦІЯ КОРИСТУВАЧА
+  // ==========================================
+  async register(req, res, next) {
+    try {
+      const { email, password, role } = req.body;
 
-    const existing = await userRepository.findByEmail(email);
-    if (existing) return res.status(409).json({ error: 'Account with this email already indexed.' });
+      if (!email || !password) {
+        return res.status(400).json({ error: 'Email та пароль є обов\'язковими.' });
+      }
 
-    const hashed = await bcrypt.hash(password, 10);
-    await userRepository.create({ email, passwordHash: hashed, role });
+      // 1. Перевіряємо, чи існує вже такий email в Oracle
+      const checkSql = `SELECT UserID FROM Users WHERE Email = :email`;
+      const existingUser = await db.execute(checkSql, { email });
+      
+      if (existingUser.rows.length > 0) {
+        return res.status(409).json({ error: 'Користувач з таким Email вже зареєстрований.' });
+      }
 
-    res.status(201).json({ message: 'User registration completed successfully.' });
-  } catch (err) { next(err); }
-};
+      // 2. Хешуємо пароль перед збереженням у БД
+      const salt = await bcrypt.genSalt(10);
+      const passwordHash = await bcrypt.hash(password, salt);
 
-const login = async (req, res, next) => {
-  try {
-    const { email, password } = req.body;
-    const user = await userRepository.findByEmail(email);
-    if (!user || user.ISACTIVE === 0) return res.status(401).json({ error: 'Invalid authentication credentials.' });
+      // 3. Зберігаємо користувача в базу (роль за замовчуванням 'student', якщо не передано)
+      const insertSql = `
+        INSERT INTO Users (Email, PasswordHash, Role, IsActive) 
+        VALUES (:email, :passwordHash, :role, 1)
+      `;
+      await db.execute(insertSql, { 
+        email, 
+        passwordHash, 
+        role: role || 'student' 
+      });
 
-    // Handle Oracle returning properties upper-cased by default
-    const valid = await bcrypt.compare(password, user.PASSWORDHASH);
-    if (!valid) return res.status(401).json({ error: 'Invalid authentication credentials.' });
+      res.status(201).json({ message: 'Обліковий запис успішно створено!' });
+    } catch (err) {
+      next(err);
+    }
+  }
 
-    const token = jwt.sign(
-      { userId: user.USERID, email: user.EMAIL, role: user.ROLE },
-      process.env.JWT_SECRET,
-      { expiresIn: '8h' }
-    );
+  // ==========================================
+  // АВТОРИЗАЦІЯ (ЛОГІН)
+  // ==========================================
+  async login(req, res, next) {
+    try {
+      const { email, password } = req.body;
 
-    res.json({ token, role: user.ROLE, email: user.EMAIL });
-  } catch (err) { next(err); }
-};
+      // 1. Шукаємо користувача
+      const sql = `SELECT UserID, Email, PasswordHash, Role, IsActive FROM Users WHERE Email = :email`;
+      const result = await db.execute(sql, { email });
+      const user = result.rows[0];
 
-module.exports = { register, login };
+      // 2. Перевірки безпеки
+      if (!user) return res.status(401).json({ error: 'Невірний email або пароль.' });
+      if (user.ISACTIVE === 0) return res.status(403).json({ error: 'Ваш обліковий запис заблоковано адміністратором.' });
+
+      // 3. Валідація хешу пароля
+      const isMatch = await bcrypt.compare(password, user.PASSWORDHASH);
+      if (!isMatch) return res.status(401).json({ error: 'Невірний email або пароль.' });
+
+      // 4. Генерація безпечного JWT токена
+      const token = jwt.sign(
+        { userId: user.USERID, role: user.ROLE },
+        process.env.JWT_SECRET,
+        { expiresIn: '24h' }
+      );
+
+      res.json({
+        message: 'Авторизація успішна.',
+        token,
+        user: { userId: user.USERID, email: user.EMAIL, role: user.ROLE }
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
+}
+
+module.exports = new AuthController();

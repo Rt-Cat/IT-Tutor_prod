@@ -1,0 +1,68 @@
+<%- include('../partials/header') %>
+<div class="dashboard-wrapper">
+    <h3>Управління профілями ШІ-Ментора</h3>
+    <p class="subtitle">Сконструюйте поведінкову модель агента для адаптивного підбору завдань.</p>
+    
+    <div style="display: grid; grid-template-columns: 1fr 2fr; gap: 2rem; margin-top: 2rem;">
+        <div class="auth-container" style="margin: 0; max-width: 100%; height: fit-content;">
+            <h5>СтворитиBehavior Matrix</h5>
+            <form action="/student/profiles" method="POST">
+                <label>Назва конфігурації:</label>
+                <input type="text" name="profileName" required placeholder="Python Core Assistant">
+                
+                <label>Опис цілі профілю:</label>
+                <textarea name="description" rows="3" placeholder="Фокус на перевірці ООП структур та обробці Variant 7"></textarea>
+                
+                <label>Початкова складність завдань:</label>
+                <select name="preferredDifficulty">
+                    <option value="easy">Easy (Початківець)</option>
+                    <option value="medium">Medium (Середній)</option>
+                    <option value="hard">Hard (Просунутий)</option>
+                </select>
+                
+                <label>Режим мислення LLM:</label>
+                <select name="aiThinkingMode">
+                    <option value="strict-compiler">Strict Compiler (Суворий відбір)</option>
+                    <option value="step-by-step">Step-by-Step Mentor (Покроковий розбір)</option>
+                </select>
+                
+                <label>
+                    <input type="checkbox" name="isDefault" value="1"> Зробити профілем за замовчуванням
+                </label>
+                
+                <button type="submit">Ініціалізувати матрицю</button>
+            </form>
+        </div>
+
+        <div>
+            <h5>Активні профілі у вашій схемі:</h5>
+            <table class="styled-table">
+                <thead>
+                    <tr>
+                        <th>Назва</th>
+                        <th>Складність</th>
+                        <th>Режим мислення</th>
+                        <th>Статус</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <% if (typeof profiles !== 'undefined' && profiles.length > 0) { %>
+                        <% profiles.forEach(prof => { %>
+                            <tr>
+                                <td><strong><%= prof.PROFILENAME %></strong><br><small><%= prof.DESCRIPTION %></small></td>
+                                <td><%= prof.PREFERREDDIFFICULTY %></td>
+                                <td><%= prof.AITHINKINGMODE %></td>
+                                <td><%= prof.ISDEFAULT === 1 ? '🟢 За замовчуванням' : 'Активний' %></td>
+                            </tr>
+                        <% }) %>
+                    <% } else { %>
+                        <tr>
+                            <td colspan="4" style="text-align: center; color: var(--text-muted);">Наразі немає створених кастомних матриць поведінки.</td>
+                        </tr>
+                    <% } %>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+<%- include('../partials/footer') %>

@@ -1,0 +1,27 @@
+<%- include('../partials/header') %>
+<div class="auth-container">
+    <h3>Реєстрація у системі</h3>
+    <% if (typeof error !== 'undefined' && error) { %> 
+        <div class="error-msg"><%= error %></div> 
+    <% } %>
+    <form action="/auth/register" method="POST">
+        <label>Електронна пошта (Email):</label>
+        <input type="email" name="email" required placeholder="example@kpi.ua">
+        
+        <label>Пароль:</label>
+        <input type="password" name="password" required minlength="6">
+        
+        <label>Бажана роль у системі:</label>
+        <select name="role">
+            <option value="student">Студент (Student)</option>
+            <option value="instructor">Викладач (Instructor)</option>
+            <option value="moderator">Модератор (Moderator)</option>
+        </select>
+        
+        <button type="submit">Створити обліковий запис</button>
+    </form>
+    <p style="font-size: 0.9rem; text-align: center; margin-top: 1rem;">
+        Вже маєте профіль? <a href="/auth/login">Увійти</a>
+    </p>
+</div>
+<%- include('../partials/footer') %>
