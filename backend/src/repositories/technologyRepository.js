@@ -21,13 +21,21 @@ class TechnologyRepository {
     return await db.execute(sql, { name, category, description });
   }
 
-  async update(id, { name, category, description }) {
-    const sql = `
+  async update(id, { name, category, description, isPublished }) {
+    let sql = `
       UPDATE Technologies 
       SET Name = :name, Category = :category, Description = :description 
-      WHERE TechnologyID = :id
     `;
-    return await db.execute(sql, { id, name, category, description });
+    const params = { id, name, category, description };
+    
+    // Якщо передано статус публікації, оновлюємо і його
+    if (isPublished !== undefined) {
+      sql += `, IsPublished = :isPublished`;
+      params.isPublished = isPublished;
+    }
+    
+    sql += ` WHERE TechnologyID = :id`;
+    return await db.execute(sql, params);
   }
 
   async linkToProfile({ profileId, technologyId, priorityLevel }) {

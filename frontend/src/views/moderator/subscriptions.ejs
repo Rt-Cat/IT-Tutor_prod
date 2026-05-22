@@ -1,39 +1,153 @@
 <%- include('../partials/header') %>
 <div class="dashboard-wrapper">
-    <h3>Управління Підписками Користувачів</h3>
-    <p class="subtitle">Моніторинг лімітів (DailyLLMLimit) та видача PRO доступу.</p>
+    <h3>Менеджмент Підписок (Billing & Plans)</h3>
+    <p class="subtitle">Керування тарифними планами, видача підписок та налаштування доступів до задач.</p>
 
-    <table>
-        <thead>
-            <tr>
-                <th>UserID</th>
-                <th>Поточний План</th>
-                <th>Дата закінчення</th>
-                <th>Статус</th>
-                <th>Дії модератора</th>
-            </tr>
-        </thead>
-        <tbody>
-            <tr>
-                <td>Студент #12</td>
-                <td><span style="background: #374151; padding: 3px 8px; border-radius: 4px;">FREE</span></td>
-                <td>Безліміт</td>
-                <td>Активна</td>
-                <td>
-                    <button style="background: #8b5cf6; padding: 5px 10px;">Апгрейд до PRO</button>
-                </td>
-            </tr>
-            <tr>
-                <td>Студент #45</td>
-                <td><span style="background: #8b5cf6; color: white; padding: 3px 8px; border-radius: 4px;">PRO</span></td>
-                <td>12.06.2026</td>
-                <td>Очікує оплати</td>
-                <td>
-                    <button style="background: var(--success); padding: 5px 10px;">Підтвердити оплату</button>
-                    <button style="background: var(--error); padding: 5px 10px;">Скасувати</button>
-                </td>
-            </tr>
-        </tbody>
-    </table>
+    <div style="display: flex; gap: 1rem; margin-top: 2rem; border-bottom: 1px solid var(--border); padding-bottom: 1rem;">
+        <button class="tab-btn active" onclick="switchTab('users', this)" style="padding: 10px 20px; background: var(--bg-input); color: var(--accent); border: 1px solid var(--border); border-radius: 6px; cursor: pointer; font-weight: bold;">👤 Підписки Користувачів</button>
+        <button class="tab-btn" onclick="switchTab('plans', this)" style="padding: 10px 20px; background: transparent; color: var(--text-muted); border: 1px solid var(--border); border-radius: 6px; cursor: pointer;">💳 Тарифні Плани</button>
+        <button class="tab-btn" onclick="switchTab('rules', this)" style="padding: 10px 20px; background: transparent; color: var(--text-muted); border: 1px solid var(--border); border-radius: 6px; cursor: pointer;">🔐 Доступ до Задач</button>
+    </div>
+
+    <div id="tab-users" class="tab-content" style="display: block; padding-top: 1.5rem;">
+        <div style="background: var(--bg-card); padding: 1.5rem; border-radius: 8px; border: 1px solid var(--border); margin-bottom: 2rem;">
+            <h5>Видати підписку вручну</h5>
+            <form action="/moderator/subscriptions/grant" method="POST" style="display: flex; gap: 1rem; align-items: flex-end;">
+                <div style="flex: 1;">
+                    <label style="display:block; margin-bottom:5px; color:var(--text-muted); font-size:0.9rem;">ID Користувача</label>
+                    <input type="number" name="userId" required style="width: 100%; padding: 10px; border-radius: 4px; border: 1px solid var(--border); background: var(--bg-input); color: white;">
+                </div>
+                <div style="flex: 1;">
+                    <label style="display:block; margin-bottom:5px; color:var(--text-muted); font-size:0.9rem;">Оберіть План</label>
+                    <select name="planId" required style="width: 100%; padding: 10px; border-radius: 4px; border: 1px solid var(--border); background: var(--bg-input); color: white;">
+                        <% plans.forEach(p => { %> <option value="<%= p.PLANID %>"><%= p.NAME %></option> <% }) %>
+                    </select>
+                </div>
+                <div style="flex: 1;">
+                    <label style="display:block; margin-bottom:5px; color:var(--text-muted); font-size:0.9rem;">Тривалість (днів)</label>
+                    <input type="number" name="durationDays" value="30" required style="width: 100%; padding: 10px; border-radius: 4px; border: 1px solid var(--border); background: var(--bg-input); color: white;">
+                </div>
+                <button type="submit" style="padding: 10px 20px; background: var(--success); color: white; border: none; border-radius: 4px; font-weight: bold; cursor: pointer;">Видати</button>
+            </form>
+        </div>
+
+        <table class="styled-table" style="width: 100%; border-collapse: collapse; text-align: left;">
+            <thead>
+                <tr style="border-bottom: 1px solid var(--border); color: var(--text-muted);">
+                    <th style="padding: 1rem;">Користувач (Email)</th>
+                    <th style="padding: 1rem;">План</th>
+                    <th style="padding: 1rem;">Дата закінчення</th>
+                    <th style="padding: 1rem;">Дії</th>
+                </tr>
+            </thead>
+            <tbody>
+                <% subscriptions.forEach(sub => { %>
+                    <tr style="border-bottom: 1px solid var(--border);">
+                        <td style="padding: 1rem;"><strong><%= sub.USEREMAIL %></strong> <small style="color: var(--text-muted);">[ID: <%= sub.USERID %>]</small></td>
+                        <td style="padding: 1rem;"><span style="background: <%= sub.PLANNAME === 'FREE' ? '#374151' : '#8b5cf6' %>; color: white; padding: 4px 10px; border-radius: 4px; font-size: 0.85rem;"><%= sub.PLANNAME %></span></td>
+                        <td style="padding: 1rem;"><%= sub.EXPDATE %></td>
+                        <td style="padding: 1rem;">
+                            <form action="/moderator/subscriptions/remove/<%= sub.SUBSCRIPTIONID %>" method="POST" style="margin: 0;">
+                                <button type="submit" style="background: var(--error); color: white; border: none; padding: 5px 10px; border-radius: 4px; font-size: 0.85rem; cursor: pointer;">Анулювати</button>
+                            </form>
+                        </td>
+                    </tr>
+                <% }) %>
+            </tbody>
+        </table>
+    </div>
+
+    <div id="tab-plans" class="tab-content" style="display: none; padding-top: 1.5rem;">
+        <div style="background: var(--bg-card); padding: 1.5rem; border-radius: 8px; border: 1px solid var(--border); margin-bottom: 2rem;">
+            <h5>Створити новий тарифний план</h5>
+            <form action="/moderator/subscriptions/plans" method="POST" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                <input type="text" name="name" placeholder="Назва плану (напр. ENTERPRISE)" required style="padding: 10px; border-radius: 4px; border: 1px solid var(--border); background: var(--bg-input); color: white;">
+                <input type="number" step="0.01" name="monthlyPrice" placeholder="Ціна (USD)" required style="padding: 10px; border-radius: 4px; border: 1px solid var(--border); background: var(--bg-input); color: white;">
+                <input type="number" name="dailyLlmLimit" placeholder="Денний ліміт токенів" required style="padding: 10px; border-radius: 4px; border: 1px solid var(--border); background: var(--bg-input); color: white;">
+                <div style="display: flex; gap: 1rem; align-items: center;">
+                    <label><input type="checkbox" name="hasFullAccess" value="1"> Повний доступ до курсів</label>
+                    <label><input type="checkbox" name="hasPartialAccess" value="1"> Частковий доступ</label>
+                </div>
+                <textarea name="description" placeholder="Опис плану..." style="grid-column: span 2; padding: 10px; border-radius: 4px; border: 1px solid var(--border); background: var(--bg-input); color: white; resize: vertical;"></textarea>
+                <button type="submit" style="grid-column: span 2; padding: 12px; background: #3b82f6; color: white; border: none; border-radius: 4px; font-weight: bold; cursor: pointer;">Створити План</button>
+            </form>
+        </div>
+
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1.5rem;">
+            <% plans.forEach(p => { %>
+                <div style="background: var(--bg-card); padding: 1.5rem; border-radius: 8px; border: 1px solid var(--border);">
+                    <h4 style="color: var(--accent); margin: 0 0 10px 0;"><%= p.NAME %></h4>
+                    <h2 style="margin: 0 0 15px 0;">$<%= p.MONTHLYPRICE %><span style="font-size: 1rem; color: var(--text-muted);"> / міс</span></h2>
+                    <ul style="list-style: none; padding: 0; color: var(--text-muted); font-size: 0.9rem;">
+                        <li>Ліміт ШІ: <b><%= p.DAILYLLMLIMIT %> токенів</b></li>
+                        <li>Повний доступ: <b><%= p.HASFULLACCESS === 1 ? 'Так' : 'Ні' %></b></li>
+                    </ul>
+                </div>
+            <% }) %>
+        </div>
+    </div>
+
+    <div id="tab-rules" class="tab-content" style="display: none; padding-top: 1.5rem;">
+        <div style="background: var(--bg-card); padding: 1.5rem; border-radius: 8px; border: 1px solid var(--border); margin-bottom: 2rem;">
+            <h5>Налаштування доступу до задачі</h5>
+            <form action="/moderator/subscriptions/rules" method="POST" style="display: flex; gap: 1rem; align-items: flex-end;">
+                <div style="flex: 1;">
+                    <label style="display:block; margin-bottom:5px; color:var(--text-muted); font-size:0.9rem;">ID Задачі (TaskID)</label>
+                    <input type="number" name="taskId" required style="width: 100%; padding: 10px; border-radius: 4px; border: 1px solid var(--border); background: var(--bg-input); color: white;">
+                </div>
+                <div style="flex: 1;">
+                    <label style="display:block; margin-bottom:5px; color:var(--text-muted); font-size:0.9rem;">Оберіть План</label>
+                    <select name="planId" required style="width: 100%; padding: 10px; border-radius: 4px; border: 1px solid var(--border); background: var(--bg-input); color: white;">
+                        <% plans.forEach(p => { %> <option value="<%= p.PLANID %>"><%= p.NAME %></option> <% }) %>
+                    </select>
+                </div>
+                <div style="display: flex; align-items: center; padding-bottom: 10px;">
+                    <label><input type="checkbox" name="isAccessible" value="1" checked> Відкрити доступ</label>
+                </div>
+                <button type="submit" style="padding: 10px 20px; background: #10b981; color: white; border: none; border-radius: 4px; font-weight: bold; cursor: pointer;">Зберегти</button>
+            </form>
+        </div>
+
+        <table class="styled-table" style="width: 100%; border-collapse: collapse; text-align: left;">
+            <thead>
+                <tr style="border-bottom: 1px solid var(--border); color: var(--text-muted);">
+                    <th style="padding: 1rem;">Задача</th>
+                    <th style="padding: 1rem;">Тарифний План</th>
+                    <th style="padding: 1rem;">Статус Доступу</th>
+                </tr>
+            </thead>
+            <tbody>
+                <% rules.forEach(rule => { %>
+                    <tr style="border-bottom: 1px solid var(--border);">
+                        <td style="padding: 1rem;"><strong><%= rule.TASKTITLE %></strong> <small style="color: var(--text-muted);">[ID: <%= rule.TASKID %>]</small></td>
+                        <td style="padding: 1rem;"><span style="background: #374151; padding: 4px 10px; border-radius: 4px; font-size: 0.85rem;"><%= rule.PLANNAME %></span></td>
+                        <td style="padding: 1rem;"><%= rule.ISACCESSIBLE === 1 ? '✅ Відкрито' : '❌ Закрито' %></td>
+                    </tr>
+                <% }) %>
+            </tbody>
+        </table>
+    </div>
+
 </div>
+
+<script>
+    function switchTab(tabName, btnElement) {
+        document.querySelectorAll('.tab-content').forEach(el => el.style.display = 'none');
+        document.querySelectorAll('.tab-btn').forEach(el => {
+            el.style.background = 'transparent'; el.style.color = 'var(--text-muted)';
+        });
+        document.getElementById('tab-' + tabName).style.display = 'block';
+        btnElement.style.background = 'var(--bg-input)'; btnElement.style.color = 'var(--accent)';
+    }
+
+    // Авто-відкриття вкладок після відправки форм
+    window.addEventListener('DOMContentLoaded', () => {
+        const targetTab = new URLSearchParams(window.location.search).get('tab');
+        if (targetTab) {
+            const activeBtn = document.querySelector(`button[onclick*="${targetTab}"]`);
+            if (activeBtn) switchTab(targetTab, activeBtn);
+        }
+    });
+</script>
+
 <%- include('../partials/footer') %>

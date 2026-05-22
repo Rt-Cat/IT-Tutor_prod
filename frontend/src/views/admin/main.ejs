@@ -1,47 +1,123 @@
 <%- include('../partials/header') %>
 <div class="dashboard-wrapper">
-    <h3>Аналітична панель адміністратора (Global Dashboard)</h3>
-    <p class="subtitle">Системні метрики виділених ресурсів та токенів, агреговані з бази Oracle.</p>
-    
-    <div class="courses-grid" style="margin-bottom: 3rem;">
-        <div class="course-card" style="background: linear-gradient(135deg, #1e293b, #0f172a);">
-            <h5>Загальна кількість користувачів</h5>
-            <h2 style="font-size: 2.5rem; color: var(--accent); margin: 0.5rem 0;"><%= metrics.TOTAL_USERS || 0 %></h2>
-            <p style="font-size: 0.8rem; color: var(--text-muted);">Зареєстровано у схемі AI_MENTOR</p>
-        </div>
-        <div class="course-card" style="background: linear-gradient(135deg, #064e3b, #022c22);">
-            <h5>Активні ШІ-Сесії</h5>
-            <h2 style="font-size: 2.5rem; color: var(--success); margin: 0.5rem 0;"><%= metrics.ACTIVE_AI_SESSIONS || 0 %></h2>
-            <p style="font-size: 0.8rem; color: var(--text-muted);">Викликів обробки токенів за добу</p>
-        </div>
-    </div>
+    <h3>Головна панель адміністратора</h3>
+    <p class="subtitle">Глобальна статистика та детальна аналітика платформи IT-Tutor.</p>
 
-    <h4>Черга управління користувачами (User Management List)</h4>
-    <table>
-        <thead>
-            <tr>
-                <th>UserID</th>
-                <th>Електронна пошта</th>
-                <th>Роль безпеки</th>
-                <th>Статус акаунту</th>
-            </tr>
-        </thead>
-        <tbody>
-            <% if (typeof users !== 'undefined' && users.length > 0) { %>
-                <% users.forEach(usr => { %>
-                    <tr>
-                        <td>#<%= usr.USERID %></td>
-                        <td><strong><%= usr.EMAIL %></strong></td>
-                        <td><span style="background: var(--bg-input); padding: 4px 8px; border-radius: 4px;"><%= usr.ROLE %></span></td>
-                        <td><%= usr.ISACTIVE === 1 ? '✅ Активний (Active)' : '🛑 Заблокований' %></td>
-                    </tr>
-                <% }) %>
-            <% } else { %>
-                <tr>
-                    <td colspan="4" style="text-align: center; color: var(--text-muted);">Дані про користувачів платформи відсутні.</td>
-                </tr>
-            <% } %>
-        </tbody>
-    </table>
+    <div style="display: flex; gap: 2rem; margin-top: 2rem;">
+        
+        <aside style="width: 250px; flex-shrink: 0; display: flex; flex-direction: column; gap: 0.5rem;">
+            <button class="tab-btn active" onclick="switchTab('general', this)">📊 Загальні показники</button>
+            <button class="tab-btn" onclick="switchTab('llm', this)">🤖 Використання LLM</button>
+            <button class="tab-btn" onclick="switchTab('content', this)">📚 Контент та Підписки</button>
+        </aside>
+
+        <main style="flex-grow: 1;">
+            
+            <div id="tab-general" class="tab-content active" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.5rem;">
+                <div style="background: var(--bg-card); border: 1px solid var(--border); padding: 1.5rem; border-radius: 8px; text-align: center;">
+                    <h5 style="color: var(--text-muted); margin: 0 0 10px 0;">Всього користувачів</h5>
+                    <h2 style="color: var(--accent); margin: 0; font-size: 2.5rem;"><%= metrics.totalUsers || 0 %></h2>
+                </div>
+                <div style="background: var(--bg-card); border: 1px solid var(--border); padding: 1.5rem; border-radius: 8px; text-align: center;">
+                    <h5 style="color: var(--text-muted); margin: 0 0 10px 0;">Вирішених задач</h5>
+                    <h2 style="color: #10b981; margin: 0; font-size: 2.5rem;"><%= metrics.completedTasks || 0 %></h2>
+                </div>
+                <div style="background: var(--bg-card); border: 1px solid var(--border); padding: 1.5rem; border-radius: 8px; text-align: center;">
+                    <h5 style="color: var(--text-muted); margin: 0 0 10px 0;">Загалом токенів</h5>
+                    <h2 style="color: #f59e0b; margin: 0; font-size: 2.5rem;"><%= metrics.totalTokens || 0 %></h2>
+                </div>
+            </div>
+
+            <div id="tab-llm" class="tab-content" style="display: none; background: var(--bg-card); padding: 1.5rem; border-radius: 8px; border: 1px solid var(--border);">
+                <h4 style="margin-top: 0;">Витрати токенів за моделями ШІ</h4>
+                <table class="styled-table" style="width: 100%; border-collapse: collapse; margin-top: 1rem; text-align: left;">
+                    <thead>
+                        <tr style="border-bottom: 1px solid var(--border); color: var(--text-muted);">
+                            <th style="padding: 10px;">Модель LLM</th>
+                            <th style="padding: 10px;">Кількість сесій</th>
+                            <th style="padding: 10px;">Витрачено токенів</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <% if (detailed && detailed.llmUsage && detailed.llmUsage.length > 0) { %>
+                            <% detailed.llmUsage.forEach(stat => { %>
+                                <tr style="border-bottom: 1px solid var(--border);">
+                                    <td style="padding: 10px; font-weight: bold;"><%= stat.model %></td>
+                                    <td style="padding: 10px;"><%= stat.count %></td>
+                                    <td style="padding: 10px; color: #f59e0b; font-weight: bold;"><%= stat.tokens %></td>
+                                </tr>
+                            <% }) %>
+                        <% } else { %>
+                            <tr><td colspan="3" style="padding: 10px; text-align: center;">Дані відсутні</td></tr>
+                        <% } %>
+                    </tbody>
+                </table>
+            </div>
+
+            <div id="tab-content" class="tab-content" style="display: none;">
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;">
+                    <div style="background: var(--bg-card); padding: 1.5rem; border-radius: 8px; border: 1px solid var(--border);">
+                        <h4 style="margin-top: 0;">База контенту</h4>
+                        <ul style="list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 10px;">
+                            <li style="display: flex; justify-content: space-between;"><span>Технологій:</span> <b><%= detailed ? detailed.content.technologies : 0 %></b></li>
+                            <li style="display: flex; justify-content: space-between;"><span>Навчальних курсів:</span> <b><%= detailed ? detailed.content.courses : 0 %></b></li>
+                            <li style="display: flex; justify-content: space-between;"><span>Практичних задач:</span> <b><%= detailed ? detailed.content.tasks : 0 %></b></li>
+                        </ul>
+                    </div>
+                    <div style="background: var(--bg-card); padding: 1.5rem; border-radius: 8px; border: 1px solid var(--border);">
+                        <h4 style="margin-top: 0;">Активні підписки</h4>
+                        <ul style="list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 10px;">
+                            <% if (detailed && detailed.subscriptions) { %>
+                                <% detailed.subscriptions.forEach(sub => { %>
+                                    <li style="display: flex; justify-content: space-between;">
+                                        <span>План "<%= sub.plan %>":</span> 
+                                        <b style="color: #10b981;"><%= sub.users %> користувачів</b>
+                                    </li>
+                                <% }) %>
+                            <% } %>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+        </main>
+    </div>
 </div>
+
+<script>
+    function switchTab(tabName, btnElement) {
+        // Ховаємо всі контентні блоки
+        document.querySelectorAll('.tab-content').forEach(el => el.style.display = 'none');
+        // Забираємо клас active у всіх кнопок
+        document.querySelectorAll('.tab-btn').forEach(el => {
+            el.style.background = 'transparent';
+            el.style.color = 'var(--text-muted)';
+        });
+        
+        // Показуємо потрібний блок
+        document.getElementById('tab-' + tabName).style.display = tabName === 'general' ? 'grid' : 'block';
+        
+        // Робимо кнопку активною
+        btnElement.style.background = 'var(--bg-input)';
+        btnElement.style.color = 'var(--accent)';
+    }
+
+    // Ініціалізація стилів для кнопок при завантаженні
+    document.querySelectorAll('.tab-btn').forEach(el => {
+        el.style.padding = '12px 15px';
+        el.style.textAlign = 'left';
+        el.style.border = '1px solid var(--border)';
+        el.style.borderRadius = '6px';
+        el.style.cursor = 'pointer';
+        el.style.transition = '0.2s';
+        if(!el.classList.contains('active')) {
+            el.style.background = 'transparent';
+            el.style.color = 'var(--text-muted)';
+        } else {
+            el.style.background = 'var(--bg-input)';
+            el.style.color = 'var(--accent)';
+        }
+    });
+</script>
+
 <%- include('../partials/footer') %>

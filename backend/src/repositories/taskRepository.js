@@ -1,6 +1,24 @@
 const db = require('../config/db');
 
+
+
 class TaskRepository {
+  async findAll() {
+    const sql = `
+      SELECT t.TaskID, t.CourseID, t.Title, t.Difficulty, t.EstimatedMinutes, t.IsFree, t.IsPublished, t.TaskDescription, c.Title as CourseTitle
+      FROM Tasks t
+      JOIN Courses c ON t.CourseID = c.CourseID
+      ORDER BY t.TaskID DESC
+    `;
+    const result = await db.execute(sql);
+    return result.rows;
+  }
+
+  async updateStatus(id, isPublished) {
+    const sql = `UPDATE Tasks SET IsPublished = :isPublished WHERE TaskID = :id`;
+    return await db.execute(sql, { isPublished, id });
+  }
+
   async findByCourseId(courseId) {
     const sql = `SELECT TaskID, CourseID, Title, Difficulty, EstimatedMinutes, IsFree, IsPublished FROM Tasks WHERE CourseID = :courseId ORDER BY SortOrder`;
     const result = await db.execute(sql, { courseId });

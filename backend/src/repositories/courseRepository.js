@@ -35,6 +35,11 @@ class CourseRepository {
     `;
     return await db.execute(sql, { id, technologyId, title, description, levelType, isPublished });
   }
+  
+  async approve(id) {
+    const sql = `UPDATE Courses SET IsPublished = 1 WHERE CourseID = :id`;
+    return await db.execute(sql, { id });
+  }
 }
 
 module.exports = new CourseRepository();

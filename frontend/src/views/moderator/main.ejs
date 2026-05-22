@@ -1,25 +1,185 @@
 <%- include('../partials/header') %>
 <div class="dashboard-wrapper">
-    <h3>Панель Модератора (Moderation Queue)</h3>
-    <p class="subtitle">Перевірка та затвердження навчального контенту, створеного інструкторами.</p>
+    <h3>Панель Модератора (Moderator Hub)</h3>
+    <p class="subtitle">Управління навчальним контентом, аналітика активності та контроль користувачів.</p>
 
-    <div class="courses-grid" style="margin-bottom: 2rem;">
-        <div class="course-card" style="background: rgba(245, 158, 11, 0.1); border-color: #f59e0b;">
-            <h5 style="color: #f59e0b;">Курси на перевірку</h5>
-            <h2 style="font-size: 2rem; margin: 0.5rem 0;">3</h2>
-            <a href="/instructor/courses" style="color: #f59e0b; text-decoration: underline;">Перейти до курсів</a>
+    <div style="display: flex; gap: 1rem; margin-top: 2rem; border-bottom: 1px solid var(--border); padding-bottom: 1rem;">
+        <button class="tab-btn active" onclick="switchTab('analytics', this)" style="padding: 10px 20px; background: var(--bg-input); color: var(--accent); border: 1px solid var(--border); border-radius: 6px; cursor: pointer; font-weight: bold;">📊 Аналітика та Черга</button>
+        <button class="tab-btn" onclick="switchTab('users', this)" style="padding: 10px 20px; background: transparent; color: var(--text-muted); border: 1px solid var(--border); border-radius: 6px; cursor: pointer;">👥 Користувачі та Ролі</button>
+        <button class="tab-btn" onclick="switchTab('ai', this)" style="padding: 10px 20px; background: transparent; color: var(--text-muted); border: 1px solid var(--border); border-radius: 6px; cursor: pointer;">🤖 ШІ-Взаємодії</button>
+    </div>
+
+    <div id="tab-analytics" class="tab-content" style="display: block; padding-top: 1.5rem;">
+        
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 2rem;">
+            <div style="background: rgba(245, 158, 11, 0.1); border: 1px solid #f59e0b; padding: 1.5rem; border-radius: 8px; text-align: center;">
+                <h5 style="color: #f59e0b; margin-top: 0;">Курси на перевірку</h5>
+                <h2 style="font-size: 2.5rem; margin: 0.5rem 0; color: white;"><%= dashboard.pending ? dashboard.pending.courses : 0 %></h2>
+                <a href="/instructor/courses" style="color: #f59e0b; text-decoration: underline; font-size: 0.9rem;">Перейти до модерації курсів</a>
+            </div>
+            <div style="background: rgba(16, 185, 129, 0.1); border: 1px solid #10b981; padding: 1.5rem; border-radius: 8px; text-align: center;">
+                <h5 style="color: #10b981; margin-top: 0;">Задачі на перевірку</h5>
+                <h2 style="font-size: 2.5rem; margin: 0.5rem 0; color: white;"><%= dashboard.pending ? dashboard.pending.tasks : 0 %></h2>
+                <a href="/instructor/tasks" style="color: #10b981; text-decoration: underline; font-size: 0.9rem;">Перейти до модерації задач</a>
+            </div>
         </div>
-        <div class="course-card" style="background: rgba(16, 185, 129, 0.1); border-color: #10b981;">
-            <h5 style="color: #10b981;">Технології на перевірку</h5>
-            <h2 style="font-size: 2rem; margin: 0.5rem 0;">1</h2>
-            <a href="/instructor/tech" style="color: #10b981; text-decoration: underline;">Перейти до технологій</a>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;">
+            <div style="background: var(--bg-card); padding: 1.5rem; border: 1px solid var(--border); border-radius: 8px;">
+                <h4 style="margin-top: 0; color: var(--accent);">🔥 Найпопулярніші курси</h4>
+                <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1rem;">За кількістю спроб виконання завдань.</p>
+                <ul style="list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 10px;">
+                    <% if (dashboard.popularCourses && dashboard.popularCourses.length > 0) { %>
+                        <% dashboard.popularCourses.forEach(course => { %>
+                            <li style="display: flex; justify-content: space-between; background: var(--bg-input); padding: 8px 12px; border-radius: 4px;">
+                                <span><%= course.TITLE %></span> 
+                                <b style="color: #10b981;"><%= course.ATTEMPTSCOUNT %> спроб</b>
+                            </li>
+                        <% }) %>
+                    <% } else { %>
+                        <li style="color: var(--text-muted);">Дані відсутні</li>
+                    <% } %>
+                </ul>
+            </div>
+
+            <div style="background: var(--bg-card); padding: 1.5rem; border: 1px solid var(--border); border-radius: 8px;">
+                <h4 style="margin-top: 0; color: var(--accent);">👨‍🏫 Топ-активність інструкторів</h4>
+                <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1rem;">За кількістю створених курсів.</p>
+                <ul style="list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 10px;">
+                    <% if (dashboard.instructorActivity && dashboard.instructorActivity.length > 0) { %>
+                        <% dashboard.instructorActivity.forEach(inst => { %>
+                            <li style="display: flex; justify-content: space-between; background: var(--bg-input); padding: 8px 12px; border-radius: 4px;">
+                                <span><%= inst.EMAIL %></span> 
+                                <b style="color: #3b82f6;"><%= inst.CREATEDCOURSES %> курсів</b>
+                            </li>
+                        <% }) %>
+                    <% } else { %>
+                        <li style="color: var(--text-muted);">Дані відсутні</li>
+                    <% } %>
+                </ul>
+            </div>
         </div>
     </div>
 
-    <h4>Останні активності інструкторів</h4>
-    <div style="background: var(--bg-card); padding: 1.5rem; border: 1px solid var(--border); border-radius: 8px;">
-        <p><strong>[12:45]</strong> Інструктор #5 створив нове завдання у курсі "Python Core". <a href="/instructor/tasks" style="color: var(--accent);">Перевірити</a></p>
-        <p><strong>[10:30]</strong> Інструктор #2 додав технологію "Docker". <a href="/instructor/tech" style="color: var(--accent);">Перевірити</a></p>
+    <div id="tab-users" class="tab-content" style="display: none; padding-top: 1.5rem;">
+        <table class="styled-table" style="width: 100%; border-collapse: collapse; text-align: left;">
+            <thead>
+                <tr style="border-bottom: 1px solid var(--border); color: var(--text-muted);">
+                    <th style="padding: 1rem;">Електронна пошта</th>
+                    <th style="padding: 1rem;">Поточна Роль</th>
+                    <th style="padding: 1rem;">Статус</th>
+                    <th style="padding: 1rem;">Дії Модератора</th>
+                </tr>
+            </thead>
+            <tbody>
+                <% if (typeof users !== 'undefined' && users.length > 0) { %>
+                    <% users.forEach(u => { %>
+                        <% if (u.ROLE === 'student' || u.ROLE === 'instructor') { %>
+                            <tr style="border-bottom: 1px solid var(--border);">
+                                <td style="padding: 1rem;"><strong><%= u.EMAIL %></strong></td>
+                                <td style="padding: 1rem;">
+                                    <span style="background: var(--bg-input); padding: 4px 8px; border-radius: 4px;"><%= u.ROLE %></span>
+                                </td>
+                                <td style="padding: 1rem;">
+                                    <% if (u.ISACTIVE === 1) { %>
+                                        <span style="color: #10b981;">Активний</span>
+                                    <% } else { %>
+                                        <span style="color: #ef4444;">Заблокований</span>
+                                    <% } %>
+                                </td>
+                                <td style="padding: 1rem; display: flex; gap: 5px;">
+                                    <% if (u.ROLE === 'student') { %>
+                                        <form action="/moderator/users/update/<%= u.USERID %>" method="POST" style="margin: 0;">
+                                            <input type="hidden" name="role" value="instructor">
+                                            <input type="hidden" name="isActive" value="<%= u.ISACTIVE %>">
+                                            <button type="submit" style="background: #3b82f6; color: white; padding: 6px 12px; font-size: 0.8rem; border: none; border-radius: 4px; cursor: pointer;">
+                                                Підвищити до Інструктора
+                                            </button>
+                                        </form>
+                                    <% } %>
+
+                                    <form action="/moderator/users/update/<%= u.USERID %>" method="POST" style="margin: 0;">
+                                        <input type="hidden" name="role" value="<%= u.ROLE %>">
+                                        <input type="hidden" name="isActive" value="<%= u.ISACTIVE === 1 ? 0 : 1 %>">
+                                        <button type="submit" style="background: <%= u.ISACTIVE === 1 ? '#ef4444' : '#10b981' %>; color: white; padding: 6px 12px; font-size: 0.8rem; border: none; border-radius: 4px; cursor: pointer;">
+                                            <%= u.ISACTIVE === 1 ? 'Заблокувати' : 'Розблокувати' %>
+                                        </button>
+                                    </form>
+                                </td>
+                            </tr>
+                        <% } %>
+                    <% }) %>
+                <% } %>
+            </tbody>
+        </table>
     </div>
+
+    <div id="tab-ai" class="tab-content" style="display: none; padding-top: 1.5rem;">
+        <h4 style="margin-top: 0; color: var(--accent);">Останні сесії перевірки коду ШІ-Ментором</h4>
+        <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1rem;">Моніторинг промптів та статусу виконання завдань.</p>
+        
+        <table class="styled-table" style="width: 100%; border-collapse: collapse; text-align: left;">
+            <thead>
+                <tr style="border-bottom: 1px solid var(--border); color: var(--text-muted);">
+                    <th style="padding: 1rem;">Студент</th>
+                    <th style="padding: 1rem;">Задача</th>
+                    <th style="padding: 1rem;">Статус ШІ-перевірки</th>
+                    <th style="padding: 1rem;">Час останньої дії</th>
+                </tr>
+            </thead>
+            <tbody>
+                <% if (dashboard.recentAIFeedback && dashboard.recentAIFeedback.length > 0) { %>
+                    <% dashboard.recentAIFeedback.forEach(fb => { %>
+                        <tr style="border-bottom: 1px solid var(--border);">
+                            <td style="padding: 1rem;"><strong><%= fb.EMAIL %></strong></td>
+                            <td style="padding: 1rem;"><%= fb.TASKTITLE %></td>
+                            <td style="padding: 1rem;">
+                                <% if (fb.STATUS === 'completed') { %>
+                                    <span style="color: #10b981;">Успішно вирішено</span>
+                                <% } else { %>
+                                    <span style="color: #ef4444;">Помилка коду</span>
+                                <% } %>
+                            </td>
+                            <td style="padding: 1rem; color: var(--text-muted);"><%= fb.ACTIONDATE %></td>
+                        </tr>
+                    <% }) %>
+                <% } else { %>
+                    <tr><td colspan="4" style="text-align: center; padding: 2rem; color: var(--text-muted);">Історія ШІ-перевірок порожня</td></tr>
+                <% } %>
+            </tbody>
+        </table>
+    </div>
+
 </div>
+
+<script>
+    function switchTab(tabName, btnElement) {
+        document.querySelectorAll('.tab-content').forEach(el => el.style.display = 'none');
+        document.querySelectorAll('.tab-btn').forEach(el => {
+            el.style.background = 'transparent';
+            el.style.color = 'var(--text-muted)';
+            el.style.border = '1px solid var(--border)';
+        });
+        
+        document.getElementById('tab-' + tabName).style.display = 'block';
+        
+        btnElement.style.background = 'var(--bg-input)';
+        btnElement.style.color = 'var(--accent)';
+    }
+
+    // Автоматичне відкриття потрібної вкладки після редіректу (наприклад, після блокування)
+    window.addEventListener('DOMContentLoaded', () => {
+        const urlParams = new URLSearchParams(window.location.search);
+        const targetTab = urlParams.get('tab');
+        
+        if (targetTab) {
+            // Шукаємо кнопку, яка відповідає цій вкладці, та "клікаємо" її
+            const activeBtn = document.querySelector(`button[onclick*="${targetTab}"]`);
+            if (activeBtn) {
+                switchTab(targetTab, activeBtn);
+            }
+        }
+    });
+</script>
+
 <%- include('../partials/footer') %>

@@ -6,40 +6,91 @@
         <div style="background: var(--bg-card); padding: 1.5rem; border-radius: 8px; border: 1px solid var(--border); margin-bottom: 2rem;">
             <h5>Створити новий курс</h5>
             <form action="/instructor/courses/add" method="POST" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
-                <input type="text" name="title" placeholder="Назва курсу" required>
-                <select name="levelType">
-                    <option value="beginner">Beginner (Початковий)</option>
-                    <option value="intermediate">Intermediate (Середній)</option>
-                    <option value="advanced">Advanced (Складний)</option>
-                </select>
-                <textarea name="description" placeholder="Короткий опис" style="grid-column: span 2;"></textarea>
-                <button type="submit" style="grid-column: span 2;">Відправити на модерацію</button>
+                
+                <div style="grid-column: span 2;">
+                    <label style="display: block; margin-bottom: 5px; color: var(--text-muted); font-size: 0.9rem;">Оберіть базову технологію (стек):</label>
+                    <select name="technologyId" required style="width: 100%; padding: 10px; background: var(--bg-input); color: white; border: 1px solid var(--border); border-radius: 4px; cursor: pointer;">
+                        <option value="" disabled selected>-- Оберіть технологію --</option>
+                        <% if (typeof technologies !== 'undefined' && technologies.length > 0) { %>
+                            <% technologies.forEach(tech => { %>
+                                <option value="<%= tech.TECHNOLOGYID %>"><%= tech.NAME %></option>
+                            <% }) %>
+                        <% } %>
+                    </select>
+                </div>
+
+                <div>
+                    <label style="display: block; margin-bottom: 5px; color: var(--text-muted); font-size: 0.9rem;">Назва навчального курсу:</label>
+                    <input type="text" name="title" placeholder="Напр. Вступ до ООП в Python" required style="width: 100%; padding: 10px; background: var(--bg-input); color: white; border: 1px solid var(--border); border-radius: 4px;">
+                </div>
+  
+                <div>
+                    <label style="display: block; margin-bottom: 5px; color: var(--text-muted); font-size: 0.9rem;">Рівень складності програми:</label>
+                    <select name="levelType" style="width: 100%; padding: 10px; background: var(--bg-input); color: white; border: 1px solid var(--border); border-radius: 4px; cursor: pointer;">
+                        <option value="beginner">Beginner (Початковий)</option>
+                        <option value="intermediate">Intermediate (Середній)</option>
+                        <option value="advanced">Advanced (Складний)</option>
+                        <option value="expert">Expert (Експертний)</option>
+                    </select>
+                </div>
+   
+                <div style="grid-column: span 2;">
+                    <label style="display: block; margin-bottom: 5px; color: var(--text-muted); font-size: 0.9rem;">Детальний опис та вимоги:</label>
+                    <textarea name="description" placeholder="Опишіть, які навички отримає студент..." rows="4" style="grid-column: span 2; padding: 10px; background: var(--bg-input); color: white; border: 1px solid var(--border); border-radius: 4px; resize: vertical;"></textarea>
+                </div>
+
+                <button type="submit" class="btn" style="grid-column: span 2; background: #3b82f6; font-weight: bold; padding: 12px;">Відправити на модерацію</button>
             </form>
         </div>
     <% } %>
 
     <h4>Каталог Курсів</h4>
-    <table>
+    <table class="styled-table" style="width: 100%; border-collapse: collapse; margin-top: 1rem; text-align: left;">
         <thead>
-            <tr>
-                <th>Назва курсу</th>
-                <th>Складність</th>
-                <th>Статус публікації</th>
-                <th>Дії</th>
+            <tr style="border-bottom: 1px solid var(--border); color: var(--text-muted); background: rgba(255,255,255,0.02);">
+                <th style="padding: 1rem;">Назва курсу</th>
+                <th style="padding: 1rem;">Технологічний стек</th>
+                <th style="padding: 1rem;">Складність</th>
+                <th style="padding: 1rem;">Статус публікації</th>
+                <th style="padding: 1rem;">Дії</th>
             </tr>
         </thead>
         <tbody>
-            <tr>
-                <td><strong>Вступ до ООП в Python</strong></td>
-                <td>beginner</td>
-                <td><span style="color: #fbbf24;">Очікує перевірки</span></td>
-                <td>
-                    <a href="/instructor/tasks" class="btn" style="padding: 5px 10px; background: #4b5563;">Завдання</a>
-                    <% if (userRole === 'moderator') { %>
-                        <button style="background: var(--success); padding: 5px 10px;">Опублікувати</button>
-                    <% } %>
-                </td>
-            </tr>
+            <% if (typeof courses !== 'undefined' && courses.length > 0) { %>
+                <% courses.forEach(course => { %>
+                    <tr style="border-bottom: 1px solid var(--border); transition: 0.2s;">
+                        <td style="padding: 1rem;"><strong><%= course.TITLE %></strong></td>
+                        <td style="padding: 1rem;"><span style="color: var(--accent); font-weight: 500;"><%= course.TECHNOLOGYNAME %></span></td>
+                        <td style="padding: 1rem;"><span style="background: var(--bg-input); padding: 3px 8px; border-radius: 4px; font-size: 0.9rem;"><%= course.LEVELTYPE %></span></td>
+                        <td style="padding: 1rem;">
+                            <% if (course.ISPUBLISHED === 1) { %>
+                                <span style="color: var(--success); font-weight: 500;">✅ Опубліковано</span>
+                            <% } else { %>
+                                <span style="color: #fbbf24; font-weight: 500;">⏳ Очікує перевірки</span>
+                            <% } %>
+                        </td>
+                        <td style="padding: 1rem;">
+                            <div style="display: flex; gap: 5px; align-items: center;">
+                                <a href="/instructor/tasks" class="btn" style="padding: 6px 12px; background: #4b5563; text-decoration: none; font-size: 0.85rem; border-radius: 4px; display: inline-block;">Завдання</a>
+                                
+                                <% if (userRole === 'moderator' && course.ISPUBLISHED === 0) { %>
+                                    <form action="/moderator/courses/approve/<%= course.COURSEID %>" method="POST" style="margin: 0;">
+                                        <button type="submit" style="background: var(--success); color: white; border: none; padding: 6px 12px; font-size: 0.85rem; border-radius: 4px; cursor: pointer; font-weight: bold;">
+                                            Опублікувати
+                                        </button>
+                                    </form>
+                                <% } %>
+                            </div>
+                        </td>
+                    </tr>
+                <% }) %>
+            <% } else { %>
+                <tr>
+                    <td colspan="5" style="text-align: center; padding: 3rem; color: var(--text-muted);">
+                        Навчальних курсів у базі даних не знайдено.
+                    </td>
+                </tr>
+            <% } %>
         </tbody>
     </table>
 </div>

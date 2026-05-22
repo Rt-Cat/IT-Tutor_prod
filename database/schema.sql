@@ -118,7 +118,7 @@ CREATE TABLE Tasks (
     CONSTRAINT fk_tasks_course FOREIGN KEY (CourseID) REFERENCES Courses(CourseID) ON DELETE CASCADE,
     CONSTRAINT chk_task_difficulty CHECK (Difficulty IN ('easy', 'medium', 'hard')),
     CONSTRAINT chk_task_free CHECK (IsFree IN (0,1)),
-    CONSTRAINT chk_task_published CHECK (IsPublished IN (0,1))
+    CONSTRAINT chk_task_published CHECK (IsPublished IN (0, 1, 2))
 );
 
 -- =========================================================================
@@ -163,11 +163,9 @@ CREATE TABLE SubscriptionPlans (
     Description VARCHAR2(1000),
     MonthlyPrice NUMBER(10,2) DEFAULT 0,
     HasFullAccess NUMBER(1) DEFAULT 0,
-    HasPartialAccess NUMBER(1) DEFAULT 0,
     DailyLLMLimit NUMBER DEFAULT 10,
     CONSTRAINT uq_plan_name UNIQUE (Name),
-    CONSTRAINT chk_plan_full CHECK (HasFullAccess IN (0,1)),
-    CONSTRAINT chk_plan_partial CHECK (HasPartialAccess IN (0,1))
+    CONSTRAINT chk_plan_full CHECK (HasFullAccess IN (0,1))
 );
 
 -- =========================================================================
@@ -239,6 +237,26 @@ CREATE TABLE LLMSessions (
 );
 
 -- =========================================================================
+-- PERFORMANCE OPTIMIZATION INDEXES (B-Tree)
+-- =========================================================================
+-- 1. Indexes for JOIN optimizations (Foreign Keys)
+CREATE INDEX idx_course_tech ON Courses(TechnologyID);
+CREATE INDEX idx_task_course ON Tasks(CourseID);
+
+-- 2. Indexes for Progress tracking and statistics
+CREATE INDEX idx_progress_user ON Progress(UserID);
+CREATE INDEX idx_progress_task ON Progress(TaskID);
+
+-- 3. Index for Scoreboard generation (Pre-sorted for ORDER BY Score DESC)
+CREATE INDEX idx_progress_score ON Progress(Score DESC);
+
+-- 4. Composite index for Admin Dashboard filtering (WHERE Role = X AND IsActive = Y)
+CREATE INDEX idx_users_role_active ON Users(Role, IsActive);
+
+-- 5. Index for LLM Analytics grouping (GROUP BY ModelName)
+CREATE INDEX idx_llmsessions_model ON LLMSessions(ModelName);
+
+-- =========================================================================
 -- INITIAL WORKSPACE core SEED DATA
 -- =========================================================================
 INSERT INTO SubscriptionPlans (Name, Description, MonthlyPrice, HasFullAccess, HasPartialAccess, DailyLLMLimit) VALUES ('FREE', 'Limited access to free tasks', 0, 0, 0, 10);
@@ -246,4 +264,56 @@ INSERT INTO SubscriptionPlans (Name, Description, MonthlyPrice, HasFullAccess, H
 INSERT INTO SubscriptionPlans (Name, Description, MonthlyPrice, HasFullAccess, HasPartialAccess, DailyLLMLimit) VALUES ('ENTERPRISE', 'Full access to all tasks and advanced AI', 49.99, 1, 1, 5000);
 
 COMMIT;
+/
+
+
+INSERT INTO Technologies (Name, Category, Description) VALUES ('Python', 'Backend', 'Python development'); -- 1
+INSERT INTO Technologies (Name, Category, Description) VALUES ('Oracle SQL', 'DB', 'SQL mastery'); -- 2
+INSERT INTO Technologies (Name, Category, Description) VALUES ('Node.js', 'Web', 'Server-side JS'); -- 3
+INSERT INTO Technologies (Name, Category, Description) VALUES ('React', 'Frontend', 'UI library'); -- 4
+
+INSERT INTO Courses (TechnologyID, Title, CreatedBy) VALUES (21, 'Python Fundamentals', 4);
+INSERT INTO Courses (TechnologyID, Title, CreatedBy) VALUES (21, 'Python Advanced', 6);
+INSERT INTO Courses (TechnologyID, Title, CreatedBy) VALUES (22, 'SQL Intro', 4);
+INSERT INTO Courses (TechnologyID, Title, CreatedBy) VALUES (22, 'SQL Tuning', 6);
+INSERT INTO Courses (TechnologyID, Title, CreatedBy) VALUES (23, 'Node.js Express', 4);
+INSERT INTO Courses (TechnologyID, Title, CreatedBy) VALUES (23, 'Async Patterns', 6);
+INSERT INTO Courses (TechnologyID, Title, CreatedBy) VALUES (24, 'React Hooks', 4);
+INSERT INTO Courses (TechnologyID, Title, CreatedBy) VALUES (24, 'React Redux', 6);
+
+BEGIN
+    FOR c IN 29..36 LOOP
+        FOR t IN 21..24 LOOP
+            INSERT INTO Tasks (CourseID, Title, TaskDescription, Difficulty) 
+            VALUES (c, 'Task ' || t || ' for Course ' || c, 'Content of task ' || t, 'easy');
+        END LOOP;
+    END LOOP;
+END;
+/
+
+INSERT INTO Profiles (ProfileName, Description, AIThinkingMode) VALUES ('Fast Learner', 'Optimized for speed', 'reactive'); -- ID 1
+INSERT INTO Profiles (ProfileName, Description, AIThinkingMode) VALUES ('Deep Researcher', 'Deep thinking mode', 'reasoning'); -- ID 2
+INSERT INTO Profiles (ProfileName, Description, AIThinkingMode) VALUES ('Code Reviewer', 'Strict code focus', 'reasoning'); -- ID 3
+INSERT INTO ProfileTechnologies (ProfileID, TechnologyID) VALUES (1, 21);
+INSERT INTO ProfileTechnologies (ProfileID, TechnologyID) VALUES (2, 22);
+INSERT INTO ProfileTechnologies (ProfileID, TechnologyID) VALUES (3, 23);
+INSERT INTO ProfileTechnologies (ProfileID, TechnologyID) VALUES (1, 24);
+
+INSERT INTO TaskPrompts (TaskID, PromptType, PromptContent) 
+SELECT TaskID, 'instruction', 'Solve this task carefully' FROM Tasks WHERE MOD(TaskID, 2) = 0;
+
+INSERT INTO Subscriptions (UserID, PlanID, ExpiryDate) 
+SELECT UserID, 1, CURRENT_DATE + 30 FROM Users WHERE UserID IN (2,3,4,6,7);
+
+INSERT INTO TaskAccessRules (TaskID, PlanID, IsAccessible)
+SELECT t.TaskID, p.PlanID, 1 FROM Tasks t, SubscriptionPlans p;
+
+BEGIN
+    FOR u IN (SELECT UserID FROM Users WHERE UserID IN (2,3,4,6,7)) LOOP
+        FOR s IN 1..5 LOOP
+            INSERT INTO LLMSessions (UserID, ProfileID, TaskID, ModelName, Status)
+            VALUES (u.UserID, 1, 41, 'gpt-4o', 'completed');
+        END LOOP;
+    END LOOP;
+END;
 /

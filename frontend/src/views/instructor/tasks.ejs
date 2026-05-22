@@ -5,86 +5,164 @@
     
     <% if (typeof userRole !== 'undefined' && userRole === 'instructor') { %>
         <div style="background: var(--bg-card); padding: 1.5rem; border-radius: 8px; border: 1px solid var(--border); margin-bottom: 2rem;">
-            <h5>Нове практичне завдання</h5>
+            <h5>Нове practical завдання</h5>
             <form action="/instructor/tasks/add" method="POST" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
                 
                 <div style="grid-column: span 2;">
-                    <label>Оберіть курс:</label>
-                    <select name="courseId" required>
-                        <option value="1">Вступ до ООП в Python</option>
-                        </select>
+                    <label style="display: block; margin-bottom: 0.5rem;">Оберіть курс:</label>
+                    <select name="courseId" required style="width: 100%; padding: 10px; border-radius: 4px; border: 1px solid var(--border); background: var(--bg-input); color: white;">
+                        <option value="" disabled selected>-- Оберіть курс --</option>
+                        <% if (typeof courses !== 'undefined' && courses.length > 0) { %>
+                            <% courses.forEach(course => { %>
+                                <option value="<%= course.COURSEID %>"><%= course.TITLE %> (<%= course.TECHNOLOGYNAME %>)</option>
+                            <% }) %>
+                        <% } %>
+                    </select>
                 </div>
 
                 <div>
-                    <label>Назва завдання:</label>
-                    <input type="text" name="title" placeholder="Реалізація класу Car" required>
+                    <label style="display: block; margin-bottom: 0.5rem;">Назва завдання:</label>
+                    <input type="text" name="title" placeholder="Реалізація класу Car" required style="width: 100%; padding: 10px; border-radius: 4px; border: 1px solid var(--border); background: var(--bg-input); color: white;">
                 </div>
                 
                 <div>
-                    <label>Складність (Difficulty):</label>
-                    <select name="difficulty">
+                    <label style="display: block; margin-bottom: 0.5rem;">Складність (Difficulty):</label>
+                    <select name="difficulty" style="width: 100%; padding: 10px; border-radius: 4px; border: 1px solid var(--border); background: var(--bg-input); color: white;">
                         <option value="easy">Easy (Легко)</option>
                         <option value="medium">Medium (Середньо)</option>
                         <option value="hard">Hard (Складно)</option>
                     </select>
                 </div>
 
-                <div>
-                    <label>Орієнтовний час (хв):</label>
-                    <input type="number" name="estimatedMinutes" placeholder="Напр. 30" required>
-                </div>
+                <div style="grid-column: span 2; display: flex; align-items: flex-end; gap: 2rem;">
+                    <div style="flex: 1;">
+                        <label style="display: block; margin-bottom: 0.5rem;">Орієнтовний час (хв):</label>
+                        <input type="number" name="estimatedMinutes" min="1" placeholder="Напр. 30" required style="width: 100%; padding: 10px; border-radius: 4px; border: 1px solid var(--border); background: var(--bg-input); color: white;">
+                    </div>
 
-                <div style="display: flex; align-items: center; gap: 10px; padding-top: 1.5rem;">
-                    <input type="checkbox" name="isFree" value="1" style="width: auto; margin: 0;">
-                    <label style="margin: 0;">Доступно в безкоштовному плані (FREE)</label>
+                    <div style="display: flex; align-items: center; gap: 0.5rem; height: 42px;">
+                        <input type="checkbox" name="isFree" value="1" id="isFreeCheck" style="width: auto; margin: 0;">
+                        <label for="isFreeCheck" style="margin: 0; cursor: pointer;">Доступно в безкоштовному плані (FREE)</label>
+                    </div>
                 </div>
 
                 <div style="grid-column: span 2;">
-                    <label>Умова завдання (Task Description):</label>
-                    <textarea name="taskDescription" rows="4" placeholder="Опишіть, що саме має написати студент, які методи реалізувати та які дані повертати..." required></textarea>
+                    <label style="display: block; margin-bottom: 0.5rem;">Умова завдання (Task Description):</label>
+                    <textarea name="taskDescription" rows="4" placeholder="Опишіть, що саме має написати студент..." required style="width: 100%; padding: 10px; border-radius: 4px; border: 1px solid var(--border); background: var(--bg-input); color: white; resize: vertical;"></textarea>
                 </div>
 
-                <button type="submit" style="grid-column: span 2;">Додати завдання та відправити на перевірку</button>
+                <button type="submit" class="btn" style="grid-column: span 2; background: #10b981;">Додати завдання та відправити на перевірку</button>
             </form>
         </div>
     <% } %>
 
-    <h4>База практичних завдань</h4>
-    <table class="styled-table" style="width: 100%; border-collapse: collapse; margin-top: 1rem;">
+    <h4 style="margin-top: 2rem;">База практичних завдань</h4>
+    <table class="styled-table" style="width: 100%; border-collapse: collapse; margin-top: 1rem; text-align: left;">
         <thead>
-            <tr style="background-color: var(--bg-main); color: var(--text-muted); text-align: left;">
-                <th style="padding: 1rem; border-bottom: 1px solid var(--border);">Завдання</th>
-                <th style="padding: 1rem; border-bottom: 1px solid var(--border);">Складність</th>
-                <th style="padding: 1rem; border-bottom: 1px solid var(--border);">Доступ</th>
-                <th style="padding: 1rem; border-bottom: 1px solid var(--border);">Статус</th>
-                <th style="padding: 1rem; border-bottom: 1px solid var(--border);">Дії</th>
+            <tr style="border-bottom: 1px solid var(--border); color: var(--text-muted); background: rgba(255,255,255,0.02);">
+                <th style="padding: 1rem;">Завдання</th>
+                <th style="padding: 1rem;">Складність</th>
+                <th style="padding: 1rem;">Доступ</th>
+                <th style="padding: 1rem;">Статус</th>
+                <th style="padding: 1rem;">Дії</th>
             </tr>
         </thead>
         <tbody>
-            <tr>
-                <td style="padding: 1rem; border-bottom: 1px solid var(--border);">
-                    <strong>Реалізація класу Car</strong><br>
-                    <small style="color: var(--text-muted);">Курс: Вступ до ООП в Python</small>
-                </td>
-                <td style="padding: 1rem; border-bottom: 1px solid var(--border);">
-                    <span style="background: var(--bg-input); padding: 3px 8px; border-radius: 4px;">easy</span>
-                </td>
-                <td style="padding: 1rem; border-bottom: 1px solid var(--border);">
-                    <span style="color: var(--success);">Free</span>
-                </td>
-                <td style="padding: 1rem; border-bottom: 1px solid var(--border);">
-                    <span style="color: #fbbf24;">Очікує модерації</span>
-                </td>
-                <td style="padding: 1rem; border-bottom: 1px solid var(--border);">
-                    <% if (typeof userRole !== 'undefined' && userRole === 'moderator') { %>
-                        <button style="background: var(--success); padding: 5px 10px; font-size: 0.85rem;">Затвердити</button>
-                        <button style="background: var(--error); padding: 5px 10px; font-size: 0.85rem;">Відхилити</button>
-                    <% } else { %>
-                        <button style="background: #4b5563; padding: 5px 10px; font-size: 0.85rem;">Редагувати</button>
-                    <% } %>
-                </td>
-            </tr>
+            <% if (typeof tasks !== 'undefined' && tasks.length > 0) { %>
+                <% tasks.forEach(task => { %>
+                    <% 
+                       // БІЗНЕС-ЛОГІКА: Якщо зайшов модератор, заховати задачі, які вже схвалені (1) або відхилені (2)
+                       if (userRole === 'moderator' && task.ISPUBLISHED !== 0) return; 
+                    %>
+                    <tr style="border-bottom: 1px solid var(--border);">
+                        <td style="padding: 1rem;">
+                            <strong><%= task.TITLE %></strong><br>
+                            <small style="color: var(--text-muted);">Курс: <%= task.COURSETITLE %></small>
+                        </td>
+                        <td style="padding: 1rem;">
+                            <span style="background: var(--bg-input); padding: 3px 8px; border-radius: 4px;"><%= task.DIFFICULTY %></span>
+                        </td>
+                        <td style="padding: 1rem;">
+                            <span style="color: <%= task.ISFREE === 1 ? 'var(--success)' : 'var(--text-muted)' %>;"><%= task.ISFREE === 1 ? 'Free' : 'Premium' %></span>
+                        </td>
+                        <td style="padding: 1rem;">
+                            <% if (task.ISPUBLISHED === 1) { %>
+                                <span style="color: var(--success); font-weight: bold;">✅ Опубліковано</span>
+                            <% } else if (task.ISPUBLISHED === 2) { %>
+                                <span style="color: var(--error); font-weight: bold;">❌ Відхилено</span>
+                            <% } else { %>
+                                <span style="color: #fbbf24; font-weight: bold;">⏳ Очікує модерації</span>
+                            <% } %>
+                        </td>
+                        <td style="padding: 1rem;">
+                            <% if (typeof userRole !== 'undefined' && userRole === 'moderator') { %>
+                                <div style="display: flex; gap: 5px;">
+                                    <form action="/moderator/tasks/approve/<%= task.TASKID %>" method="POST" style="margin:0;">
+                                        <button type="submit" style="background: var(--success); padding: 5px 10px; font-size: 0.85rem; border:none; border-radius:4px; color:white; cursor:pointer; font-weight:bold;">Затвердити</button>
+                                    </form>
+                                    <form action="/moderator/tasks/reject/<%= task.TASKID %>" method="POST" style="margin:0;">
+                                        <button type="submit" style="background: var(--error); padding: 5px 10px; font-size: 0.85rem; border:none; border-radius:4px; color:white; cursor:pointer; font-weight:bold;">Відхилити</button>
+                                    </form>
+                                </div>
+                            <% } else { %>
+                                <button onclick="openEditTaskModal('<%= task.TASKID %>', '<%= task.TITLE %>', '<%= task.DIFFICULTY %>', '<%= task.ESTIMATEDMINUTES %>', '<%= task.ISFREE %>', `<%= task.TASKDESCRIPTION || '' %>`)" style="background: #4b5563; padding: 5px 10px; font-size: 0.85rem; border:none; border-radius:4px; color:white; cursor:pointer;">Редагувати</button>
+                            <% } %>
+                        </td>
+                    </tr>
+                <% }) %>
+            <% } else { %>
+                <tr><td colspan="5" style="text-align:center; padding: 2rem; color:var(--text-muted);">Задачі в системі відсутні</td></tr>
+            <% } %>
         </tbody>
     </table>
 </div>
+
+<div id="editTaskModal" style="display: none; position: fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.7); align-items:center; justify-content:center; z-index:1000;">
+    <div style="background: var(--bg-card); padding: 2rem; border-radius: 8px; width: 450px; border: 1px solid var(--border);">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+            <h4 style="margin: 0;">Редагувати завдання</h4>
+            <button onclick="document.getElementById('editTaskModal').style.display='none'" style="background: transparent; border: none; color: var(--text-muted); font-size: 1.5rem; cursor: pointer;">&times;</button>
+        </div>
+        <form id="editTaskForm" method="POST" style="display: flex; flex-direction: column; gap: 1rem;">
+            <div>
+                <label style="display:block; margin-bottom:5px; color:var(--text-muted);">Назва завдання:</label>
+                <input type="text" id="edit_t_title" name="title" required style="width: 100%; padding: 10px; border-radius: 4px; border: 1px solid var(--border); background: var(--bg-input); color: white;">
+            </div>
+            <div>
+                <label style="display:block; margin-bottom:5px; color:var(--text-muted);">Складність:</label>
+                <select id="edit_t_diff" name="difficulty" style="width: 100%; padding: 10px; border-radius: 4px; border: 1px solid var(--border); background: var(--bg-input); color: white;">
+                    <option value="easy">Easy (Легко)</option>
+                    <option value="medium">Medium (Середньо)</option>
+                    <option value="hard">Hard (Складно)</option>
+                </select>
+            </div>
+            <div>
+                <label style="display:block; margin-bottom:5px; color:var(--text-muted);">Орієнтовний час (хв):</label>
+                <input type="number" id="edit_t_time" name="estimatedMinutes" required style="width: 100%; padding: 10px; border-radius: 4px; border: 1px solid var(--border); background: var(--bg-input); color: white;">
+            </div>
+            <div style="display: flex; align-items: center; gap: 10px; padding: 5px 0;">
+                <input type="checkbox" id="edit_t_isFree" name="isFree" value="1" style="width: auto; margin: 0;">
+                <label style="margin: 0;">Доступно в безкоштовному плані (FREE)</label>
+            </div>
+            <div>
+                <label style="display:block; margin-bottom:5px; color:var(--text-muted);">Умова завдання:</label>
+                <textarea id="edit_t_desc" name="taskDescription" rows="5" required style="width: 100%; padding: 10px; border-radius: 4px; border: 1px solid var(--border); background: var(--bg-input); color: white; resize: vertical;"></textarea>
+            </div>
+            <button type="submit" class="btn" style="background: #3b82f6; font-weight: bold; padding: 12px; border:none; border-radius:6px; color:white; cursor:pointer; margin-top:1rem;">Зберегти зміни та відправити на модерацію</button>
+        </form>
+    </div>
+</div>
+
+<script>
+function openEditTaskModal(id, title, difficulty, time, isFree, description) {
+    document.getElementById('editTaskForm').action = '/instructor/tasks/edit/' + id;
+    document.getElementById('edit_t_title').value = title;
+    document.getElementById('edit_t_diff').value = difficulty;
+    document.getElementById('edit_t_time').value = time;
+    document.getElementById('edit_t_isFree').checked = (isFree === '1');
+    document.getElementById('edit_t_desc').value = description;
+    document.getElementById('editTaskModal').style.display = 'flex';
+}
+</script>
+
 <%- include('../partials/footer') %>

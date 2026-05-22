@@ -26,6 +26,7 @@ app.use('/api/auth', require('./src/routes/authRoutes'));
 app.use('/api/dashboard', require('./src/routes/dashboardRoutes'));
 app.use('/api/learning', require('./src/routes/learningRoutes'));
 app.use('/api/profiles', require('./src/routes/profileRoutes'));
+app.use('/api/admin', require('./src/routes/dashboardRoutes'));
 
 // Fallback Unhandled Route Handler
 app.use((req, res, next) => {

@@ -1,21 +1,62 @@
 <%- include('../partials/header') %>
 <div class="dashboard-wrapper">
-    <h3><%= userRole === 'moderator' ? 'Модерація Контенту' : 'База Навчального Контенту' %></h3>
-    <p class="subtitle">Ієрархія технологій, курсів та практичних завдань.</p>
+    <div style="display: flex; justify-content: space-between; align-items: center;">
+        <div>
+            <h3><%= userRole === 'moderator' ? 'Модерація Контенту' : 'База Навчального Контенту' %></h3>
+            <p class="subtitle">Ієрархія технологій, курсів та практичних завдань.</p>
+        </div>
+        <% if (userRole === 'instructor' || userRole === 'admin') { %>
+            <button onclick="document.getElementById('techModal').style.display='flex'" class="btn" style="background: #8b5cf6;">+ Додати технологію</button>
+        <% } %>
+    </div>
+
+    <div id="techModal" style="display: none; position: fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.7); align-items:center; justify-content:center; z-index:1000;">
+        <div style="background: var(--bg-card); padding: 2rem; border-radius: 8px; width: 400px; border: 1px solid var(--border);">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+                <h4 style="margin: 0;">Нова Технологія</h4>
+                <button onclick="document.getElementById('techModal').style.display='none'" style="background: transparent; border: none; color: var(--text-muted); font-size: 1.5rem; cursor: pointer;">&times;</button>
+            </div>
+            <form action="/instructor/tech/add" method="POST" style="display: flex; flex-direction: column; gap: 1rem;">
+                <input type="text" name="name" placeholder="Назва (напр. Python)" required style="padding: 10px; border-radius: 4px; border: 1px solid var(--border); background: var(--bg-input); color: white;">
+                <input type="text" name="category" placeholder="Категорія (напр. Backend)" style="padding: 10px; border-radius: 4px; border: 1px solid var(--border); background: var(--bg-input); color: white;">
+                <textarea name="description" placeholder="Опис..." rows="3" style="padding: 10px; border-radius: 4px; border: 1px solid var(--border); background: var(--bg-input); color: white; resize: none;"></textarea>
+                <button type="submit" class="btn" style="background: #8b5cf6;">Створити</button>
+            </form>
+        </div>
+    </div>
 
     <div style="margin-top: 2rem;">
         <% if (tree && tree.length > 0) { %>
             <% tree.forEach(tech => { %>
-                
                 <div style="background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; margin-bottom: 1.5rem; overflow: hidden;">
                     <div style="background: rgba(59, 130, 246, 0.1); padding: 1rem 1.5rem; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;">
-                        <h4 style="margin: 0; color: var(--accent);">🛠 Технологія: <%= tech.name %></h4>
+                        <h4 style="margin: 0; color: var(--accent);">
+                            🛠 Технологія: <%= tech.name %>
+                            <% if (tech.isPublished === 0) { %>
+                                <span style="color: #fbbf24; font-size: 0.8rem; margin-left: 10px;">(Очікує модерації)</span>
+                            <% } %>
+                        </h4>
+    
+                        <div style="display: flex; gap: 10px;">
+                            <% if (userRole === 'instructor' || userRole === 'admin') { %>
+                                <button onclick="openEditTechModal('<%= tech.id %>', '<%= tech.name %>', '<%= tech.category || '' %>')" style="background: #4b5563; color: white; border: none; padding: 5px 12px; font-size: 0.8rem; border-radius: 4px; cursor: pointer;">
+                                    Редагувати
+                                </button>
+                            <% } %>
+        
+                            <% if (userRole === 'moderator' && tech.isPublished === 0) { %>
+                                <form action="/moderator/technologies/approve/<%= tech.id %>" method="POST" style="margin: 0;">
+                                    <button type="submit" style="background: var(--success); color: white; border: none; padding: 5px 12px; font-size: 0.8rem; border-radius: 4px; cursor: pointer; font-weight: bold;">
+                                        Затвердити
+                                    </button>
+                                </form>
+                            <% } %>
+                        </div>
                     </div>
                     
                     <div style="padding: 1rem 1.5rem;">
                         <% if (tech.courses && tech.courses.length > 0) { %>
                             <% tech.courses.forEach(course => { %>
-                                
                                 <div style="margin-bottom: 1rem; padding-left: 1.5rem; border-left: 2px solid var(--border);">
                                     <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
                                         <h5 style="margin: 0; font-size: 1.1rem;">📚 Курс: <%= course.title %> 
@@ -45,7 +86,6 @@
                                         <p style="padding-left: 1.5rem; color: var(--text-muted); font-size: 0.9rem;">В цьому курсі ще немає завдань.</p>
                                     <% } %>
                                 </div>
-
                             <% }) %>
                         <% } else { %>
                             <p style="color: var(--text-muted);">До цієї технології ще не додано жодного курсу.</p>
@@ -61,4 +101,27 @@
         <% } %>
     </div>
 </div>
+<div id="editTechModal" style="display: none; position: fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.7); align-items:center; justify-content:center; z-index:1000;">
+    <div style="background: var(--bg-card); padding: 2rem; border-radius: 8px; width: 400px; border: 1px solid var(--border);">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+            <h4 style="margin: 0;">Редагувати Технологію</h4>
+            <button onclick="document.getElementById('editTechModal').style.display='none'" style="background: transparent; border: none; color: var(--text-muted); font-size: 1.5rem; cursor: pointer;">&times;</button>
+        </div>
+        <form id="editTechForm" method="POST" style="display: flex; flex-direction: column; gap: 1rem;">
+            <input type="text" id="edit_tech_name" name="name" required style="padding: 10px; border-radius: 4px; border: 1px solid var(--border); background: var(--bg-input); color: white;">
+            <input type="text" id="edit_tech_cat" name="category" style="padding: 10px; border-radius: 4px; border: 1px solid var(--border); background: var(--bg-input); color: white;">
+            <textarea name="description" placeholder="Новий опис..." rows="3" style="padding: 10px; border-radius: 4px; border: 1px solid var(--border); background: var(--bg-input); color: white; resize: none;"></textarea>
+            <button type="submit" class="btn" style="background: #3b82f6;">Зберегти зміни</button>
+        </form>
+    </div>
+</div>
+
+<script>
+function openEditTechModal(id, name, category) {
+    document.getElementById('editTechForm').action = '/instructor/tech/edit/' + id;
+    document.getElementById('edit_tech_name').value = name;
+    document.getElementById('edit_tech_cat').value = category;
+    document.getElementById('editTechModal').style.display = 'flex';
+}
+</script>
 <%- include('../partials/footer') %>

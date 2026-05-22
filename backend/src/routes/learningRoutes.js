@@ -3,10 +3,13 @@ const router = express.Router();
 const learningController = require('../controllers/learningController');
 const { authenticateToken, authorizeRoles } = require('../middleware/auth');
 
-// Domain Configuration Paths
+// Отримання дерева контенту (для відображення на фронтенді)
+router.get('/tree', authenticateToken, learningController.getContentTree);
+
+// Domain Configuration Paths (Додано дозвіл для 'instructor')
 router.get('/technologies', authenticateToken, learningController.getTechnologies);
-router.post('/technologies', authenticateToken, authorizeRoles('admin', 'moderator'), learningController.createTechnology);
-router.put('/technologies/:id', authenticateToken, authorizeRoles('admin', 'moderator'), learningController.updateTechnology);
+router.post('/technologies', authenticateToken, authorizeRoles('admin', 'moderator', 'instructor'), learningController.createTechnology);
+router.put('/technologies/:id', authenticateToken, authorizeRoles('admin', 'moderator', 'instructor'), learningController.updateTechnology);
 
 // Course Management Paths
 router.get('/courses', authenticateToken, learningController.getCourses);
@@ -18,5 +21,11 @@ router.get('/courses/:courseId/tasks', authenticateToken, learningController.get
 router.post('/tasks', authenticateToken, authorizeRoles('admin', 'instructor'), learningController.createTask);
 router.post('/tasks/:taskId/prompts', authenticateToken, authorizeRoles('admin', 'instructor'), learningController.addTaskPrompt);
 router.put('/tasks/:id', authenticateToken, authorizeRoles('admin', 'instructor'), learningController.updateTask);
+
+// Додайте до відповідних блоків роутера
+router.post('/courses/approve/:id', authenticateToken, authorizeRoles('admin', 'moderator'), learningController.approveCourse);
+router.get('/tasks', authenticateToken, learningController.getTasks);
+router.post('/tasks/approve/:id', authenticateToken, authorizeRoles('admin', 'moderator'), learningController.approveTask);
+router.post('/tasks/reject/:id', authenticateToken, authorizeRoles('admin', 'moderator'), learningController.rejectTask);
 
 module.exports = router;
