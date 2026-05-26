@@ -263,10 +263,6 @@ INSERT INTO SubscriptionPlans (Name, Description, MonthlyPrice, HasFullAccess, H
 INSERT INTO SubscriptionPlans (Name, Description, MonthlyPrice, HasFullAccess, HasPartialAccess, DailyLLMLimit) VALUES ('PRO', 'Partial access to premium tasks', 19.99, 0, 1, 500);
 INSERT INTO SubscriptionPlans (Name, Description, MonthlyPrice, HasFullAccess, HasPartialAccess, DailyLLMLimit) VALUES ('ENTERPRISE', 'Full access to all tasks and advanced AI', 49.99, 1, 1, 5000);
 
-COMMIT;
-/
-
-
 INSERT INTO Technologies (Name, Category, Description) VALUES ('Python', 'Backend', 'Python development'); -- 1
 INSERT INTO Technologies (Name, Category, Description) VALUES ('Oracle SQL', 'DB', 'SQL mastery'); -- 2
 INSERT INTO Technologies (Name, Category, Description) VALUES ('Node.js', 'Web', 'Server-side JS'); -- 3
@@ -316,4 +312,6 @@ BEGIN
         END LOOP;
     END LOOP;
 END;
+
+COMMIT;
 /

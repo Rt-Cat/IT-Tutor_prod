@@ -1,53 +1,97 @@
-const express = require('express');
-const db = require('./src/config/db');
-const errorHandler = require('./src/middleware/errorHandler');
 require('dotenv').config();
+const express = require('express');
+const cors = require('cors');
+const cookieParser = require('cookie-parser');
+const { initializePool, closePool } = require('./db');
+const errorHandler = require('./middleware/errorHandler');
+
+// Import routes
+const authRoutes = require('./routes/authRoutes');
+const dashboardRoutes = require('./routes/dashboardRoutes');
+const learningRoutes = require('./routes/learningRoutes');
+const profileRoutes = require('./routes/profileRoutes');
+const studentRoutes = require('./routes/studentRoutes');
+const adminRoutes = require('./routes/adminRoutes');
+const moderatorRoutes = require('./routes/moderatorRoutes');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// Universal body parsers for inbound API calls
-app.use(express.json());
-app.use(express.urlencoded({ extended: false }));
+// CORS configuration for Next.js frontend
+const corsOptions = {
+  origin: [
+    'http://localhost:3000',
+    'http://127.0.0.1:3000',
+    process.env.FRONTEND_URL
+  ].filter(Boolean),
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+  exposedHeaders: ['set-cookie']
+};
 
-// CORS validation layer for decoupled layout communication
+// Middleware
+app.use(cors(corsOptions));
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+app.use(cookieParser());
+
+// Request logging middleware
 app.use((req, res, next) => {
-  res.header('Access-Control-Allow-Origin', '*');
-  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
-  if (req.method === 'OPTIONS') {
-    res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH');
-    return res.status(200).json({});
-  }
+  console.log(`[${new Date().toISOString()}] ${req.method} ${req.path}`);
   next();
 });
 
-// Routing Layer Definitions
-app.use('/api/auth', require('./src/routes/authRoutes'));
-app.use('/api/dashboard', require('./src/routes/dashboardRoutes'));
-app.use('/api/learning', require('./src/routes/learningRoutes'));
-app.use('/api/profiles', require('./src/routes/profileRoutes'));
-app.use('/api/admin', require('./src/routes/dashboardRoutes'));
-
-// Fallback Unhandled Route Handler
-app.use((req, res, next) => {
-  console.log(`[404 DEBUG]: Фронтенд шукає маршрут -> ${req.method} ${req.originalUrl}`);
-  res.status(404).json({ error: 'Endpoint destination requested was not found.' });
+// Health check endpoint
+app.get('/api/health', (req, res) => {
+  res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
-// Catch-All Interceptor Layer
+// API Routes
+app.use('/api/auth', authRoutes);
+app.use('/api/dashboard', dashboardRoutes);
+app.use('/api/learning', learningRoutes);
+app.use('/api/profiles', profileRoutes);
+app.use('/api/student', studentRoutes);
+app.use('/api/admin', adminRoutes);
+app.use('/api/moderator', moderatorRoutes);
+
+// 404 handler for undefined routes
+app.use('/api/*', (req, res) => {
+  res.status(404).json({ error: 'API endpoint not found' });
+});
+
+// Global error handler
 app.use(errorHandler);
 
-async function bootSystem() {
+// Graceful shutdown
+process.on('SIGTERM', async () => {
+  console.log('SIGTERM received. Shutting down gracefully...');
+  await closePool();
+  process.exit(0);
+});
+
+process.on('SIGINT', async () => {
+  console.log('SIGINT received. Shutting down gracefully...');
+  await closePool();
+  process.exit(0);
+});
+
+// Start server
+async function startServer() {
   try {
-    // Spin up connection pooling matrix before handling user endpoints
-    await db.initializePool();
+    await initializePool();
+    console.log('Database pool initialized');
+    
     app.listen(PORT, () => {
-      console.log(`[API Engine Engine Live]: Securely handling connections on port ${PORT}`);
+      console.log(`Server running on port ${PORT}`);
+      console.log(`API available at http://localhost:${PORT}/api`);
+      console.log(`CORS enabled for: ${corsOptions.origin.join(', ')}`);
     });
-  } catch (err) {
-    console.error('Critical boot sequence failure. Terminating process:', err);
+  } catch (error) {
+    console.error('Failed to start server:', error);
     process.exit(1);
   }
 }
 
-bootSystem();
+startServer();

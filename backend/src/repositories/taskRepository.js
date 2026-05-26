@@ -1,61 +1,194 @@
-const db = require('../config/db');
+const { executeQuery, executeWithClob, oracledb } = require('../db');
 
-
-
-class TaskRepository {
-  async findAll() {
-    const sql = `
-      SELECT t.TaskID, t.CourseID, t.Title, t.Difficulty, t.EstimatedMinutes, t.IsFree, t.IsPublished, t.TaskDescription, c.Title as CourseTitle
-      FROM Tasks t
-      JOIN Courses c ON t.CourseID = c.CourseID
-      ORDER BY t.TaskID DESC
+const taskRepository = {
+  // Get all tasks with filters
+  async findAll({ page = 1, limit = 20, status = null, courseId = null, difficulty = null }) {
+    let sql = `
+      SELECT t.TASK_ID, t.TITLE, t.DESCRIPTION, t.DIFFICULTY_LEVEL, t.ESTIMATED_MINUTES,
+             t.IS_FREE, t.STATUS, t.CREATED_AT, t.UPDATED_AT,
+             c.COURSE_ID, c.COURSE_NAME,
+             u.USER_ID as CREATED_BY_ID, u.FIRST_NAME || ' ' || u.LAST_NAME as CREATED_BY_NAME
+      FROM TASKS t
+      JOIN COURSES c ON t.COURSE_ID = c.COURSE_ID
+      LEFT JOIN USERS u ON t.CREATED_BY = u.USER_ID
+      WHERE 1=1
     `;
-    const result = await db.execute(sql);
+    const binds = {};
+
+    if (status) {
+      sql += ` AND LOWER(t.STATUS) = LOWER(:status)`;
+      binds.status = status;
+    }
+    if (courseId) {
+      sql += ` AND t.COURSE_ID = :courseId`;
+      binds.courseId = courseId;
+    }
+    if (difficulty) {
+      sql += ` AND LOWER(t.DIFFICULTY_LEVEL) = LOWER(:difficulty)`;
+      binds.difficulty = difficulty;
+    }
+
+    sql += ` ORDER BY t.CREATED_AT DESC`;
+    sql += ` OFFSET :offset ROWS FETCH NEXT :limit ROWS ONLY`;
+    binds.offset = (page - 1) * limit;
+    binds.limit = limit;
+
+    const result = await executeQuery(sql, binds);
     return result.rows;
-  }
+  },
 
-  async updateStatus(id, isPublished) {
-    const sql = `UPDATE Tasks SET IsPublished = :isPublished WHERE TaskID = :id`;
-    return await db.execute(sql, { isPublished, id });
-  }
-
-  async findByCourseId(courseId) {
-    const sql = `SELECT TaskID, CourseID, Title, Difficulty, EstimatedMinutes, IsFree, IsPublished FROM Tasks WHERE CourseID = :courseId ORDER BY SortOrder`;
-    const result = await db.execute(sql, { courseId });
-    return result.rows;
-  }
-
+  // Get task by ID
   async findById(id) {
-    const sql = `SELECT TaskID, CourseID, Title, TaskDescription, Difficulty, EstimatedMinutes, IsFree, IsPublished FROM Tasks WHERE TaskID = :id`;
-    const result = await db.execute(sql, { id });
-    return result.rows[0];
-  }
-
-  async create({ courseId, title, taskDescription, difficulty, estimatedMinutes, isFree, isPublished, sortOrder }) {
     const sql = `
-      INSERT INTO Tasks (CourseID, Title, TaskDescription, Difficulty, EstimatedMinutes, IsFree, IsPublished, SortOrder)
-      VALUES (:courseId, :title, :taskDescription, :difficulty, :estimatedMinutes, :isFree, :isPublished, :sortOrder)
+      SELECT t.TASK_ID, t.TITLE, t.DESCRIPTION, t.DIFFICULTY_LEVEL, t.ESTIMATED_MINUTES,
+             t.IS_FREE, t.STATUS, t.CREATED_AT, t.UPDATED_AT,
+             c.COURSE_ID, c.COURSE_NAME,
+             u.USER_ID as CREATED_BY_ID, u.FIRST_NAME || ' ' || u.LAST_NAME as CREATED_BY_NAME
+      FROM TASKS t
+      JOIN COURSES c ON t.COURSE_ID = c.COURSE_ID
+      LEFT JOIN USERS u ON t.CREATED_BY = u.USER_ID
+      WHERE t.TASK_ID = :id
     `;
-    return await db.execute(sql, { courseId, title, taskDescription, difficulty, estimatedMinutes, isFree, isPublished, sortOrder });
-  }
+    const result = await executeQuery(sql, [id]);
+    return result.rows[0] || null;
+  },
 
-  async update(id, { title, taskDescription, difficulty, estimatedMinutes, isFree, isPublished, sortOrder }) {
+  // Get tasks by instructor
+  async findByInstructor(userId, { page = 1, limit = 20 }) {
     const sql = `
-      UPDATE Tasks 
-      SET Title = :title, TaskDescription = :taskDescription, Difficulty = :difficulty, 
-          EstimatedMinutes = :estimatedMinutes, IsFree = :isFree, IsPublished = :isPublished, SortOrder = :sortOrder
-      WHERE TaskID = :id
+      SELECT t.TASK_ID, t.TITLE, t.DIFFICULTY_LEVEL, t.STATUS, t.CREATED_AT,
+             c.COURSE_NAME
+      FROM TASKS t
+      JOIN COURSES c ON t.COURSE_ID = c.COURSE_ID
+      WHERE t.CREATED_BY = :userId
+      ORDER BY t.CREATED_AT DESC
+      OFFSET :offset ROWS FETCH NEXT :limit ROWS ONLY
     `;
-    return await db.execute(sql, { id, title, taskDescription, difficulty, estimatedMinutes, isFree, isPublished, sortOrder });
-  }
+    const result = await executeQuery(sql, {
+      userId,
+      offset: (page - 1) * limit,
+      limit
+    });
+    return result.rows;
+  },
 
-  async createPrompt({ taskId, promptType, promptContent }) {
+  // Create task
+  async create({ title, description, courseId, difficultyLevel, estimatedMinutes, isFree, createdBy }) {
     const sql = `
-      INSERT INTO TaskPrompts (TaskID, PromptType, PromptContent)
-      VALUES (:taskId, :promptType, :promptContent)
+      INSERT INTO TASKS (TITLE, DESCRIPTION, COURSE_ID, DIFFICULTY_LEVEL, ESTIMATED_MINUTES, IS_FREE, CREATED_BY, STATUS)
+      VALUES (:title, :description, :courseId, :difficultyLevel, :estimatedMinutes, :isFree, :createdBy, 'pending')
+      RETURNING TASK_ID INTO :taskId
     `;
-    return await db.execute(sql, { taskId, promptType, promptContent });
-  }
-}
+    const result = await executeWithClob(sql, {
+      title,
+      description,
+      courseId,
+      difficultyLevel,
+      estimatedMinutes: estimatedMinutes || 15,
+      isFree: isFree ? 1 : 0,
+      createdBy,
+      taskId: { type: oracledb.NUMBER, dir: oracledb.BIND_OUT }
+    });
+    return result.outBinds.taskId[0];
+  },
 
-module.exports = new TaskRepository();
+  // Update task
+  async update(id, updates) {
+    const fields = [];
+    const binds = { id };
+
+    if (updates.title) {
+      fields.push('TITLE = :title');
+      binds.title = updates.title;
+    }
+    if (updates.description) {
+      fields.push('DESCRIPTION = :description');
+      binds.description = updates.description;
+    }
+    if (updates.difficultyLevel) {
+      fields.push('DIFFICULTY_LEVEL = :difficultyLevel');
+      binds.difficultyLevel = updates.difficultyLevel;
+    }
+    if (updates.estimatedMinutes) {
+      fields.push('ESTIMATED_MINUTES = :estimatedMinutes');
+      binds.estimatedMinutes = updates.estimatedMinutes;
+    }
+    if (updates.isFree !== undefined) {
+      fields.push('IS_FREE = :isFree');
+      binds.isFree = updates.isFree ? 1 : 0;
+    }
+    if (updates.status) {
+      fields.push('STATUS = :status');
+      binds.status = updates.status;
+    }
+
+    fields.push('UPDATED_AT = SYSDATE');
+
+    if (fields.length === 1) return false;
+
+    const sql = `UPDATE TASKS SET ${fields.join(', ')} WHERE TASK_ID = :id`;
+    const result = await executeQuery(sql, binds);
+    return result.rowsAffected > 0;
+  },
+
+  // Update task status (for moderation)
+  async updateStatus(id, status, moderatorId = null) {
+    const sql = `
+      UPDATE TASKS 
+      SET STATUS = :status, 
+          MODERATED_BY = :moderatorId,
+          MODERATED_AT = SYSDATE,
+          UPDATED_AT = SYSDATE
+      WHERE TASK_ID = :id
+    `;
+    const result = await executeQuery(sql, { id, status, moderatorId });
+    return result.rowsAffected > 0;
+  },
+
+  // Delete task
+  async delete(id) {
+    const sql = `DELETE FROM TASKS WHERE TASK_ID = :id`;
+    const result = await executeQuery(sql, [id]);
+    return result.rowsAffected > 0;
+  },
+
+  // Get pending tasks (for moderation)
+  async getPending({ page = 1, limit = 20 }) {
+    const sql = `
+      SELECT t.TASK_ID, t.TITLE, t.DESCRIPTION, t.DIFFICULTY_LEVEL, t.CREATED_AT,
+             c.COURSE_NAME,
+             u.FIRST_NAME || ' ' || u.LAST_NAME as INSTRUCTOR_NAME
+      FROM TASKS t
+      JOIN COURSES c ON t.COURSE_ID = c.COURSE_ID
+      LEFT JOIN USERS u ON t.CREATED_BY = u.USER_ID
+      WHERE t.STATUS = 'pending'
+      ORDER BY t.CREATED_AT ASC
+      OFFSET :offset ROWS FETCH NEXT :limit ROWS ONLY
+    `;
+    const result = await executeQuery(sql, {
+      offset: (page - 1) * limit,
+      limit
+    });
+    return result.rows;
+  },
+
+  // Count tasks
+  async count({ status = null, courseId = null }) {
+    let sql = `SELECT COUNT(*) as COUNT FROM TASKS WHERE 1=1`;
+    const binds = {};
+
+    if (status) {
+      sql += ` AND LOWER(STATUS) = LOWER(:status)`;
+      binds.status = status;
+    }
+    if (courseId) {
+      sql += ` AND COURSE_ID = :courseId`;
+      binds.courseId = courseId;
+    }
+
+    const result = await executeQuery(sql, binds);
+    return result.rows[0]?.COUNT || 0;
+  }
+};
+
+module.exports = taskRepository;

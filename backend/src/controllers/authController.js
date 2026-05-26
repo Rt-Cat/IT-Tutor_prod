@@ -1,121 +1,224 @@
-const bcrypt = require('bcryptjs');
-const jwt = require('jsonwebtoken');
-const db = require('../config/db');
+const userRepository = require('../repositories/userRepository');
+const subscriptionRepository = require('../repositories/subscriptionRepository');
+const { generateToken } = require('../middleware/auth');
 
-class AuthController {
-  
-  // ==========================================
-  // РЕЄСТРАЦІЯ КОРИСТУВАЧА
-  // ==========================================
+const authController = {
+  // Register new user
   async register(req, res, next) {
     try {
-      const { email, password, role } = req.body;
+      const { email, password, firstName, lastName, role } = req.body;
 
+      // Validation
       if (!email || !password) {
-        return res.status(400).json({ error: 'Email та пароль обов\'язкові.' });
+        return res.status(400).json({ error: 'Email and password are required' });
       }
 
-      const requestedRole = role || 'student';
-      let isActive = 1; // За замовчуванням акаунт активний
-      let successMessage = 'Обліковий запис успішно створено!';
-
-      // 1. ЛОГІКА ДЛЯ АДМІНІСТРАТОРА (Bootstrap Admin)
-      if (requestedRole === 'admin') {
-        const adminCheckSql = `SELECT COUNT(*) AS AdminCount FROM Users WHERE Role = 'admin'`;
-        const adminCheckResult = await db.execute(adminCheckSql, {});
-        
-        // В Oracle імена колонок у результатах зазвичай у верхньому регістрі (ADMINCOUNT)
-        const adminCount = adminCheckResult.rows[0].ADMINCOUNT || adminCheckResult.rows[0].admincount || 0;
-
-        if (adminCount > 0) {
-          return res.status(403).json({ 
-            error: 'Головний адміністратор вже існує. Створення нових адмінів можливе лише з панелі керування.' 
-          });
-        }
+      // Check if user exists
+      const existingUser = await userRepository.findByEmail(email);
+      if (existingUser) {
+        return res.status(400).json({ error: 'Email already registered' });
       }
 
-      // 2. ЛОГІКА ДЛЯ МОДЕРАТОРА (Реєстрація очікує підтвердження)
-      if (requestedRole === 'moderator') {
-        isActive = 0; // Блокуємо вхід до апруву
-        successMessage = 'Заявку на роль Модератора прийнято! Очікуйте підтвердження адміністратором.';
+      // Get role ID
+      let roleData = await userRepository.getRoleByName(role || 'student');
+      if (!roleData) {
+        roleData = await userRepository.getRoleByName('student');
       }
 
-      // 3. Перевірка на унікальність Email
-      const checkEmailSql = `SELECT UserID FROM Users WHERE Email = :email`;
-      const existingUser = await db.execute(checkEmailSql, { email });
-      if (existingUser.rows.length > 0) {
-        return res.status(409).json({ error: 'Користувач з таким Email вже зареєстрований.' });
-      }
-
-      // 4. Хешування та збереження в БД
-      const salt = await bcrypt.genSalt(10);
-      const passwordHash = await bcrypt.hash(password, salt);
-
-      const insertSql = `
-        INSERT INTO Users (Email, PasswordHash, Role, IsActive) 
-        VALUES (:email, :passwordHash, :role, :isActive)
-      `;
-      await db.execute(insertSql, { 
-        email, 
-        passwordHash, 
-        role: requestedRole,
-        isActive 
+      // Create user
+      const userId = await userRepository.create({
+        email,
+        password,
+        firstName: firstName || '',
+        lastName: lastName || '',
+        roleId: roleData.ROLE_ID
       });
 
-      res.status(201).json({ message: successMessage });
-    } catch (err) {
-      next(err);
+      // Get created user
+      const user = await userRepository.findById(userId);
+
+      // Generate token
+      const token = generateToken(user);
+
+      // Set cookie
+      res.cookie('token', token, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        maxAge: 24 * 60 * 60 * 1000 // 24 hours
+      });
+
+      res.status(201).json({
+        message: 'Registration successful',
+        user: {
+          id: user.USER_ID,
+          email: user.EMAIL,
+          firstName: user.FIRST_NAME,
+          lastName: user.LAST_NAME,
+          role: user.ROLE_NAME
+        },
+        token
+      });
+    } catch (error) {
+      next(error);
     }
-  }
+  },
 
-  async checkAdminExists(req, res, next) {
-  try {
-    const sql = `SELECT COUNT(*) AS AdminCount FROM Users WHERE Role = 'admin'`;
-    const result = await db.execute(sql, {});
-    const count = result.rows[0].ADMINCOUNT || result.rows[0].admincount || 0;
-    
-    res.json({ exists: count > 0 });
-  } catch (err) {
-    next(err);
-  }
-}
-
-  // ==========================================
-  // АВТОРИЗАЦІЯ (ЛОГІН)
-  // ==========================================
+  // Login user
   async login(req, res, next) {
     try {
       const { email, password } = req.body;
 
-      // 1. Шукаємо користувача
-      const sql = `SELECT UserID, Email, PasswordHash, Role, IsActive FROM Users WHERE Email = :email`;
-      const result = await db.execute(sql, { email });
-      const user = result.rows[0];
+      if (!email || !password) {
+        return res.status(400).json({ error: 'Email and password are required' });
+      }
 
-      // 2. Перевірки безпеки
-      if (!user) return res.status(401).json({ error: 'Невірний email або пароль.' });
-      if (user.ISACTIVE === 0) return res.status(403).json({ error: 'Ваш обліковий запис заблоковано адміністратором.' });
+      // Find user
+      const user = await userRepository.findByEmail(email);
+      if (!user) {
+        return res.status(401).json({ error: 'Invalid email or password' });
+      }
 
-      // 3. Валідація хешу пароля
-      const isMatch = await bcrypt.compare(password, user.PASSWORDHASH);
-      if (!isMatch) return res.status(401).json({ error: 'Невірний email або пароль.' });
+      // Verify password
+      const isValid = await userRepository.verifyPassword(password, user.PASSWORD_HASH);
+      if (!isValid) {
+        return res.status(401).json({ error: 'Invalid email or password' });
+      }
 
-      // 4. Генерація безпечного JWT токена
-      const token = jwt.sign(
-        { userId: user.USERID, role: user.ROLE },
-        process.env.JWT_SECRET,
-        { expiresIn: '24h' }
-      );
+      // Check if active
+      if (!user.IS_ACTIVE) {
+        return res.status(403).json({ error: 'Account is deactivated. Contact support.' });
+      }
+
+      // Get subscription
+      const subscription = await subscriptionRepository.getUserSubscription(user.USER_ID);
+
+      // Generate token
+      const token = generateToken(user);
+
+      // Set cookie
+      res.cookie('token', token, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        maxAge: 24 * 60 * 60 * 1000
+      });
 
       res.json({
-        message: 'Авторизація успішна.',
-        token,
-        user: { userId: user.USERID, email: user.EMAIL, role: user.ROLE }
+        message: 'Login successful',
+        user: {
+          id: user.USER_ID,
+          email: user.EMAIL,
+          firstName: user.FIRST_NAME,
+          lastName: user.LAST_NAME,
+          role: user.ROLE_NAME
+        },
+        subscription: subscription ? {
+          plan: subscription.PLAN_NAME,
+          tokensRemaining: subscription.TOKENS_REMAINING,
+          expiresAt: subscription.END_DATE
+        } : null,
+        token
       });
-    } catch (err) {
-      next(err);
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  // Logout
+  async logout(req, res) {
+    res.clearCookie('token');
+    res.json({ message: 'Logged out successfully' });
+  },
+
+  // Check if admin exists
+  async adminExists(req, res, next) {
+    try {
+      const exists = await userRepository.adminExists();
+      res.json({ exists });
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  // Get current user
+  async getCurrentUser(req, res, next) {
+    try {
+      const user = await userRepository.findById(req.user.id);
+      if (!user) {
+        return res.status(404).json({ error: 'User not found' });
+      }
+
+      const subscription = await subscriptionRepository.getUserSubscription(user.USER_ID);
+
+      res.json({
+        user: {
+          id: user.USER_ID,
+          email: user.EMAIL,
+          firstName: user.FIRST_NAME,
+          lastName: user.LAST_NAME,
+          role: user.ROLE_NAME,
+          isActive: user.IS_ACTIVE,
+          createdAt: user.CREATED_AT
+        },
+        subscription: subscription ? {
+          plan: subscription.PLAN_NAME,
+          tokensRemaining: subscription.TOKENS_REMAINING,
+          expiresAt: subscription.END_DATE
+        } : null
+      });
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  // Update profile
+  async updateProfile(req, res, next) {
+    try {
+      const { firstName, lastName, email } = req.body;
+
+      await userRepository.update(req.user.id, { firstName, lastName, email });
+
+      const user = await userRepository.findById(req.user.id);
+
+      res.json({
+        message: 'Profile updated',
+        user: {
+          id: user.USER_ID,
+          email: user.EMAIL,
+          firstName: user.FIRST_NAME,
+          lastName: user.LAST_NAME,
+          role: user.ROLE_NAME
+        }
+      });
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  // Change password
+  async changePassword(req, res, next) {
+    try {
+      const { currentPassword, newPassword } = req.body;
+
+      if (!currentPassword || !newPassword) {
+        return res.status(400).json({ error: 'Current and new password are required' });
+      }
+
+      const user = await userRepository.findById(req.user.id);
+      const isValid = await userRepository.verifyPassword(currentPassword, user.PASSWORD_HASH);
+
+      if (!isValid) {
+        return res.status(400).json({ error: 'Current password is incorrect' });
+      }
+
+      await userRepository.changePassword(req.user.id, newPassword);
+
+      res.json({ message: 'Password changed successfully' });
+    } catch (error) {
+      next(error);
     }
   }
-}
+};
 
-module.exports = new AuthController();
+module.exports = authController;

@@ -1,31 +1,27 @@
 const express = require('express');
 const router = express.Router();
 const learningController = require('../controllers/learningController');
-const { authenticateToken, authorizeRoles } = require('../middleware/auth');
+const { authenticate, authorize, optionalAuth } = require('../middleware/auth');
 
-// Отримання дерева контенту (для відображення на фронтенді)
-router.get('/tree', authenticateToken, learningController.getContentTree);
+// Technologies (public)
+router.get('/technologies', optionalAuth, learningController.getTechnologies);
 
-// Domain Configuration Paths (Додано дозвіл для 'instructor')
-router.get('/technologies', authenticateToken, learningController.getTechnologies);
-router.post('/technologies', authenticateToken, authorizeRoles('admin', 'moderator', 'instructor'), learningController.createTechnology);
-router.put('/technologies/:id', authenticateToken, authorizeRoles('admin', 'moderator', 'instructor'), learningController.updateTechnology);
+// Courses
+router.get('/courses', optionalAuth, learningController.getCourses);
+router.get('/courses/:id', optionalAuth, learningController.getCourseById);
+router.post('/courses', authenticate, authorize('instructor', 'admin'), learningController.createCourse);
+router.put('/courses/:id', authenticate, authorize('instructor', 'admin'), learningController.updateCourse);
+router.delete('/courses/:id', authenticate, authorize('admin'), learningController.deleteCourse);
 
-// Course Management Paths
-router.get('/courses', authenticateToken, learningController.getCourses);
-router.post('/courses', authenticateToken, authorizeRoles('admin', 'instructor'), learningController.createCourse);
-router.put('/courses/:id', authenticateToken, authorizeRoles('admin', 'instructor'), learningController.updateCourse);
+// Tasks
+router.get('/tasks', optionalAuth, learningController.getTasks);
+router.get('/tasks/:id', optionalAuth, learningController.getTaskById);
+router.post('/tasks', authenticate, authorize('instructor', 'admin'), learningController.createTask);
+router.put('/tasks/:id', authenticate, authorize('instructor', 'moderator', 'admin'), learningController.updateTask);
+router.delete('/tasks/:id', authenticate, authorize('admin'), learningController.deleteTask);
 
-// Task Generation Paths
-router.get('/courses/:courseId/tasks', authenticateToken, learningController.getTasksByCourse);
-router.post('/tasks', authenticateToken, authorizeRoles('admin', 'instructor'), learningController.createTask);
-router.post('/tasks/:taskId/prompts', authenticateToken, authorizeRoles('admin', 'instructor'), learningController.addTaskPrompt);
-router.put('/tasks/:id', authenticateToken, authorizeRoles('admin', 'instructor'), learningController.updateTask);
-
-// Додайте до відповідних блоків роутера
-router.post('/courses/approve/:id', authenticateToken, authorizeRoles('admin', 'moderator'), learningController.approveCourse);
-router.get('/tasks', authenticateToken, learningController.getTasks);
-router.post('/tasks/approve/:id', authenticateToken, authorizeRoles('admin', 'moderator'), learningController.approveTask);
-router.post('/tasks/reject/:id', authenticateToken, authorizeRoles('admin', 'moderator'), learningController.rejectTask);
+// Subscriptions
+router.get('/subscriptions/plans', learningController.getSubscriptionPlans);
+router.get('/subscriptions/my', authenticate, learningController.getMySubscription);
 
 module.exports = router;

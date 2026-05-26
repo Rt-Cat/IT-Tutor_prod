@@ -1,124 +1,140 @@
-const db = require('../config/db');
+const { executeQuery, oracledb } = require('../db');
 
-class SubscriptionRepository {
-  async findAllPlans() {
-    const sql = `SELECT PlanID, Name, Description, MonthlyPrice, DailyLLMLimit, HasFullAccess FROM SubscriptionPlans ORDER BY MonthlyPrice ASC`;
-    const result = await db.execute(sql);
+const subscriptionRepository = {
+  // Get all subscription plans
+  async getPlans() {
+    const sql = `
+      SELECT PLAN_ID, PLAN_NAME, PRICE, TOKEN_LIMIT, DURATION_DAYS, FEATURES, IS_ACTIVE
+      FROM SUBSCRIPTION_PLANS
+      WHERE IS_ACTIVE = 1
+      ORDER BY PRICE
+    `;
+    const result = await executeQuery(sql);
     return result.rows;
-  }
+  },
 
-  async findActiveUserSubscription(userId) {
+  // Get plan by ID
+  async getPlanById(id) {
     const sql = `
-      SELECT SubscriptionID, PlanID, StartDate, ExpiryDate, Status 
-      FROM Subscriptions 
-      WHERE UserID = :userId AND Status = 'active' AND ExpiryDate >= CURRENT_DATE
+      SELECT PLAN_ID, PLAN_NAME, PRICE, TOKEN_LIMIT, DURATION_DAYS, FEATURES, IS_ACTIVE
+      FROM SUBSCRIPTION_PLANS
+      WHERE PLAN_ID = :id
     `;
-    const result = await db.execute(sql, { userId });
-    return result.rows[0];
-  }
+    const result = await executeQuery(sql, [id]);
+    return result.rows[0] || null;
+  },
 
-  async createUserSubscription({ userId, planId, durationDays }) {
+  // Get user's active subscription
+  async getUserSubscription(userId) {
     const sql = `
-      INSERT INTO Subscriptions (UserID, PlanID, ExpiryDate, Status)
-      VALUES (:userId, :planId, CURRENT_DATE + :durationDays, 'active')
+      SELECT us.SUBSCRIPTION_ID, us.START_DATE, us.END_DATE, us.TOKENS_REMAINING,
+             sp.PLAN_NAME, sp.TOKEN_LIMIT, sp.PRICE
+      FROM USER_SUBSCRIPTIONS us
+      JOIN SUBSCRIPTION_PLANS sp ON us.PLAN_ID = sp.PLAN_ID
+      WHERE us.USER_ID = :userId
+      AND us.END_DATE > SYSDATE
+      ORDER BY us.END_DATE DESC
+      FETCH FIRST 1 ROW ONLY
     `;
-    return await db.execute(sql, { userId, planId, durationDays });
-  }
+    const result = await executeQuery(sql, [userId]);
+    return result.rows[0] || null;
+  },
 
-  async updateSubscriptionStatus(subscriptionId, status) {
-    const sql = `UPDATE Subscriptions SET Status = :status WHERE SubscriptionID = :subscriptionId`;
-    return await db.execute(sql, { subscriptionId, status });
-  }
-  // Отримання списку всіх підписок у системі для модератора
-  async getAllSubscriptionsForModerator() {
+  // Create subscription for user
+  async createSubscription(userId, planId) {
+    const plan = await this.getPlanById(planId);
+    if (!plan) throw new Error('Plan not found');
+
+    const sql = `
+      INSERT INTO USER_SUBSCRIPTIONS (USER_ID, PLAN_ID, START_DATE, END_DATE, TOKENS_REMAINING)
+      VALUES (:userId, :planId, SYSDATE, SYSDATE + :durationDays, :tokenLimit)
+      RETURNING SUBSCRIPTION_ID INTO :subscriptionId
+    `;
+    const result = await executeQuery(sql, {
+      userId,
+      planId,
+      durationDays: plan.DURATION_DAYS,
+      tokenLimit: plan.TOKEN_LIMIT,
+      subscriptionId: { type: oracledb.NUMBER, dir: oracledb.BIND_OUT }
+    });
+    return result.outBinds.subscriptionId[0];
+  },
+
+  // Update tokens remaining
+  async updateTokens(subscriptionId, tokensUsed) {
+    const sql = `
+      UPDATE USER_SUBSCRIPTIONS 
+      SET TOKENS_REMAINING = TOKENS_REMAINING - :tokensUsed
+      WHERE SUBSCRIPTION_ID = :subscriptionId
+      AND TOKENS_REMAINING >= :tokensUsed
+    `;
+    const result = await executeQuery(sql, { subscriptionId, tokensUsed });
+    return result.rowsAffected > 0;
+  },
+
+  // Get subscription statistics (for admin)
+  async getStats() {
     const sql = `
       SELECT 
-        s.SubscriptionID, s.UserID, u.Email as UserEmail,
-        p.Name as PlanName, p.PlanID,
-        TO_CHAR(s.ExpiryDate, 'DD.MM.YYYY') as ExpDate, s.Status
-      FROM Subscriptions s
-      JOIN Users u ON s.UserID = u.UserID
-      JOIN SubscriptionPlans p ON s.PlanID = p.PlanID
-      ORDER BY s.CreatedAt DESC
+        sp.PLAN_NAME,
+        COUNT(us.SUBSCRIPTION_ID) as ACTIVE_SUBSCRIBERS,
+        SUM(sp.PRICE) as MONTHLY_REVENUE
+      FROM SUBSCRIPTION_PLANS sp
+      LEFT JOIN USER_SUBSCRIPTIONS us ON sp.PLAN_ID = us.PLAN_ID AND us.END_DATE > SYSDATE
+      WHERE sp.IS_ACTIVE = 1
+      GROUP BY sp.PLAN_NAME, sp.PLAN_ID
+      ORDER BY sp.PLAN_ID
     `;
-    const result = await db.execute(sql);
+    const result = await executeQuery(sql);
     return result.rows;
-  }
+  },
 
-  // Розширене оновлення статусу (з можливістю зміни тарифного плану при апгрейді)
-  async updateSubscriptionByModerator(subId, status, planId = null) {
-    let sql = `UPDATE Subscriptions SET Status = :status`;
-    const params = { status, subId };
-    
-    if (planId) {
-      sql += `, PlanID = :planId`;
-      params.planId = planId;
+  // Create subscription plan (admin)
+  async createPlan({ planName, price, tokenLimit, durationDays, features }) {
+    const sql = `
+      INSERT INTO SUBSCRIPTION_PLANS (PLAN_NAME, PRICE, TOKEN_LIMIT, DURATION_DAYS, FEATURES, IS_ACTIVE)
+      VALUES (:planName, :price, :tokenLimit, :durationDays, :features, 1)
+      RETURNING PLAN_ID INTO :planId
+    `;
+    const result = await executeQuery(sql, {
+      planName,
+      price,
+      tokenLimit,
+      durationDays,
+      features,
+      planId: { type: oracledb.NUMBER, dir: oracledb.BIND_OUT }
+    });
+    return result.outBinds.planId[0];
+  },
+
+  // Update subscription plan (admin)
+  async updatePlan(id, updates) {
+    const fields = [];
+    const binds = { id };
+
+    if (updates.planName) {
+      fields.push('PLAN_NAME = :planName');
+      binds.planName = updates.planName;
     }
-    sql += ` WHERE SubscriptionID = :subId`;
-    
-    await db.execute(sql, params);
-  }
-
-  // --- УПРАВЛІННЯ ПЛАНАМИ (SubscriptionPlans) ---
-  async createPlan({ name, description, monthlyPrice, hasFullAccess, hasPartialAccess, dailyLlmLimit }) {
-    const sql = `
-      INSERT INTO SubscriptionPlans (Name, Description, MonthlyPrice, HasFullAccess, HasPartialAccess, DailyLLMLimit)
-      VALUES (:name, :description, :monthlyPrice, :hasFullAccess, :hasPartialAccess, :dailyLlmLimit)
-    `;
-    return await db.execute(sql, { name, description, monthlyPrice, hasFullAccess, hasPartialAccess, dailyLlmLimit });
-  }
-
-  async updatePlan(planId, { name, description, monthlyPrice, hasFullAccess, hasPartialAccess, dailyLlmLimit }) {
-    const sql = `
-      UPDATE SubscriptionPlans 
-      SET Name = :name, Description = :description, MonthlyPrice = :monthlyPrice, 
-          HasFullAccess = :hasFullAccess, HasPartialAccess = :hasPartialAccess, DailyLLMLimit = :dailyLlmLimit
-      WHERE PlanID = :planId
-    `;
-    return await db.execute(sql, { planId, name, description, monthlyPrice, hasFullAccess, hasPartialAccess, dailyLlmLimit });
-  }
-
-  // --- УПРАВЛІННЯ ПІДПИСКАМИ КОРИСТУВАЧІВ ---
-  async grantSubscriptionToUser({ userId, planId, durationDays }) {
-    const sql = `
-      INSERT INTO Subscriptions (UserID, PlanID, StartDate, ExpiryDate, Status, AutoRenew)
-      VALUES (:userId, :planId, CURRENT_DATE, CURRENT_DATE + :durationDays, 'active', 0)
-    `;
-    return await db.execute(sql, { userId, planId, durationDays });
-  }
-
-  async deleteSubscription(subId) {
-    const sql = `DELETE FROM Subscriptions WHERE SubscriptionID = :subId`;
-    return await db.execute(sql, { subId });
-  }
-
-  // --- ДОСТУП ДО ЗАДАЧ (TaskAccessRules) ---
-  async upsertTaskAccessRule({ taskId, planId, isAccessible }) {
-    // Перевіряємо, чи існує правило, якщо так - оновлюємо, інакше - створюємо
-    const checkSql = `SELECT AccessRuleID FROM TaskAccessRules WHERE TaskID = :taskId AND PlanID = :planId`;
-    const result = await db.execute(checkSql, { taskId, planId });
-    
-    if (result.rows.length > 0) {
-      const sql = `UPDATE TaskAccessRules SET IsAccessible = :isAccessible WHERE TaskID = :taskId AND PlanID = :planId`;
-      return await db.execute(sql, { isAccessible, taskId, planId });
-    } else {
-      const sql = `INSERT INTO TaskAccessRules (TaskID, PlanID, IsAccessible) VALUES (:taskId, :planId, :isAccessible)`;
-      return await db.execute(sql, { taskId, planId, isAccessible });
+    if (updates.price !== undefined) {
+      fields.push('PRICE = :price');
+      binds.price = updates.price;
     }
-  }
+    if (updates.tokenLimit) {
+      fields.push('TOKEN_LIMIT = :tokenLimit');
+      binds.tokenLimit = updates.tokenLimit;
+    }
+    if (updates.isActive !== undefined) {
+      fields.push('IS_ACTIVE = :isActive');
+      binds.isActive = updates.isActive ? 1 : 0;
+    }
 
-  async getTaskAccessRules() {
-    const sql = `
-      SELECT r.AccessRuleID, r.TaskID, t.Title as TaskTitle, r.PlanID, p.Name as PlanName, r.IsAccessible
-      FROM TaskAccessRules r
-      JOIN Tasks t ON r.TaskID = t.TaskID
-      JOIN SubscriptionPlans p ON r.PlanID = p.PlanID
-      ORDER BY r.TaskID DESC
-    `;
-    const result = await db.execute(sql);
-    return result.rows;
-  }
-  
-}
+    if (fields.length === 0) return false;
 
-module.exports = new SubscriptionRepository();
+    const sql = `UPDATE SUBSCRIPTION_PLANS SET ${fields.join(', ')} WHERE PLAN_ID = :id`;
+    const result = await executeQuery(sql, binds);
+    return result.rowsAffected > 0;
+  }
+};
+
+module.exports = subscriptionRepository;

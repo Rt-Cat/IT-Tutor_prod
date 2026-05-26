@@ -1,49 +1,112 @@
 const oracledb = require('oracledb');
-require('dotenv').config();
-oracledb.fetchAsString = [oracledb.CLOB];
-// Enforce standard JSON key-value extraction structures automatically
-oracledb.outFormat = oracledb.OUT_FORMAT_OBJECT;
 
-let pool;
+// Oracle DB configuration
+const dbConfig = {
+  user: process.env.DB_USER || 'ADMIN',
+  password: process.env.DB_PASSWORD,
+  connectString: process.env.DB_CONNECTION_STRING || 'localhost:1521/FREEPDB1',
+  poolMin: 2,
+  poolMax: 10,
+  poolIncrement: 1,
+  poolTimeout: 60
+};
+
+let pool = null;
 
 async function initializePool() {
-  pool = await oracledb.createPool({
-    user: process.env.DB_USER,
-    password: process.env.DB_PASSWORD,
-    connectString: process.env.DB_CONNECT_STRING,
-    poolMax: 12,
-    poolMin: 2,
-    poolIncrement: 1
-  });
+  try {
+    // Set Oracle client options
+    oracledb.outFormat = oracledb.OUT_FORMAT_OBJECT;
+    oracledb.autoCommit = true;
+    
+    pool = await oracledb.createPool(dbConfig);
+    console.log('Oracle connection pool created successfully');
+    
+    // Test connection
+    const connection = await pool.getConnection();
+    const result = await connection.execute('SELECT SYSDATE FROM DUAL');
+    console.log('Database connection test successful:', result.rows[0]);
+    await connection.close();
+    
+    return pool;
+  } catch (error) {
+    console.error('Error creating connection pool:', error);
+    throw error;
+  }
 }
 
-async function execute(sql, binds = {}, options = {}) {
-  let connection;
-  // Standardize automatic commit behaviors for structural updates unless explicitly overrode
-  options.autoCommit = options.autoCommit !== false;
-  options.outFormat = options.outFormat || oracledb.OUT_FORMAT_OBJECT;
-  try {
-    connection = await pool.getConnection();
-    if (Array.isArray(binds)) {
-      throw new Error("Execute function received an array as 'binds'. Expected an object.");
+async function getConnection() {
+  if (!pool) {
+    throw new Error('Connection pool not initialized');
+  }
+  return await pool.getConnection();
+}
+
+async function closePool() {
+  if (pool) {
+    try {
+      await pool.close(10);
+      console.log('Connection pool closed');
+    } catch (error) {
+      console.error('Error closing connection pool:', error);
     }
-    const result = await connection.execute(sql, binds, options);
+  }
+}
+
+// Execute query helper
+async function executeQuery(sql, binds = [], options = {}) {
+  let connection;
+  try {
+    connection = await getConnection();
+    const result = await connection.execute(sql, binds, {
+      outFormat: oracledb.OUT_FORMAT_OBJECT,
+      ...options
+    });
     return result;
-  } catch (err) {
-    console.error(`[Oracle Database Exception]: ${err.message}`);
-    console.error(`[Oracle Database Exception]: ${err.message}`);
-    console.error(`SQL: ${sql}`);
-    console.error(`Binds:`, JSON.stringify(binds, null, 2));
-    throw err;
+  } catch (error) {
+    console.error('Query execution error:', error);
+    throw error;
   } finally {
     if (connection) {
       try {
         await connection.close();
-      } catch (closeErr) {
-        console.error('Error reverting connection block to active pool:', closeErr);
+      } catch (err) {
+        console.error('Error closing connection:', err);
       }
     }
   }
 }
 
-module.exports = { initializePool, execute };
+// Execute with CLOB support
+async function executeWithClob(sql, binds = {}, options = {}) {
+  let connection;
+  try {
+    connection = await getConnection();
+    const result = await connection.execute(sql, binds, {
+      outFormat: oracledb.OUT_FORMAT_OBJECT,
+      autoCommit: true,
+      ...options
+    });
+    return result;
+  } catch (error) {
+    console.error('CLOB query execution error:', error);
+    throw error;
+  } finally {
+    if (connection) {
+      try {
+        await connection.close();
+      } catch (err) {
+        console.error('Error closing connection:', err);
+      }
+    }
+  }
+}
+
+module.exports = {
+  initializePool,
+  getConnection,
+  closePool,
+  executeQuery,
+  executeWithClob,
+  oracledb
+};

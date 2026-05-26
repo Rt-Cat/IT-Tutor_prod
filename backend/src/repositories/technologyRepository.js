@@ -1,50 +1,88 @@
-const db = require('../config/db');
+const { executeQuery, oracledb } = require('../db');
 
-class TechnologyRepository {
+const technologyRepository = {
+  // Get all technologies
   async findAll() {
-    const sql = `SELECT TechnologyID, Name, Category, Description FROM Technologies ORDER BY Name`;
-    const result = await db.execute(sql);
+    const sql = `
+      SELECT TECH_ID, TECH_NAME, DESCRIPTION, IS_ACTIVE, CREATED_AT
+      FROM TECHNOLOGIES
+      WHERE IS_ACTIVE = 1
+      ORDER BY TECH_NAME
+    `;
+    const result = await executeQuery(sql);
+    return result.rows;
+  },
+
+  // Get technology by ID
+  async findById(id) {
+    const sql = `
+      SELECT TECH_ID, TECH_NAME, DESCRIPTION, IS_ACTIVE, CREATED_AT
+      FROM TECHNOLOGIES
+      WHERE TECH_ID = :id
+    `;
+    const result = await executeQuery(sql, [id]);
+    return result.rows[0] || null;
+  },
+
+  // Create technology
+  async create({ techName, description }) {
+    const sql = `
+      INSERT INTO TECHNOLOGIES (TECH_NAME, DESCRIPTION, IS_ACTIVE)
+      VALUES (:techName, :description, 1)
+      RETURNING TECH_ID INTO :techId
+    `;
+    const result = await executeQuery(sql, {
+      techName,
+      description,
+      techId: { type: oracledb.NUMBER, dir: oracledb.BIND_OUT }
+    });
+    return result.outBinds.techId[0];
+  },
+
+  // Update technology
+  async update(id, { techName, description, isActive }) {
+    const fields = [];
+    const binds = { id };
+
+    if (techName) {
+      fields.push('TECH_NAME = :techName');
+      binds.techName = techName;
+    }
+    if (description !== undefined) {
+      fields.push('DESCRIPTION = :description');
+      binds.description = description;
+    }
+    if (isActive !== undefined) {
+      fields.push('IS_ACTIVE = :isActive');
+      binds.isActive = isActive ? 1 : 0;
+    }
+
+    if (fields.length === 0) return false;
+
+    const sql = `UPDATE TECHNOLOGIES SET ${fields.join(', ')} WHERE TECH_ID = :id`;
+    const result = await executeQuery(sql, binds);
+    return result.rowsAffected > 0;
+  },
+
+  // Delete technology
+  async delete(id) {
+    const sql = `DELETE FROM TECHNOLOGIES WHERE TECH_ID = :id`;
+    const result = await executeQuery(sql, [id]);
+    return result.rowsAffected > 0;
+  },
+
+  // Get technologies with course count
+  async findAllWithCourseCount() {
+    const sql = `
+      SELECT t.TECH_ID, t.TECH_NAME, t.DESCRIPTION,
+             (SELECT COUNT(*) FROM COURSES c WHERE c.TECH_ID = t.TECH_ID AND c.IS_ACTIVE = 1) as COURSE_COUNT
+      FROM TECHNOLOGIES t
+      WHERE t.IS_ACTIVE = 1
+      ORDER BY t.TECH_NAME
+    `;
+    const result = await executeQuery(sql);
     return result.rows;
   }
+};
 
-  async findById(id) {
-    const sql = `SELECT TechnologyID, Name, Category, Description FROM Technologies WHERE TechnologyID = :id`;
-    const result = await db.execute(sql, { id });
-    return result.rows[0];
-  }
-
-  async create({ name, category, description }) {
-    const sql = `
-      INSERT INTO Technologies (Name, Category, Description) 
-      VALUES (:name, :category, :description)
-    `;
-    return await db.execute(sql, { name, category, description });
-  }
-
-  async update(id, { name, category, description, isPublished }) {
-    let sql = `
-      UPDATE Technologies 
-      SET Name = :name, Category = :category, Description = :description 
-    `;
-    const params = { id, name, category, description };
-    
-    // Якщо передано статус публікації, оновлюємо і його
-    if (isPublished !== undefined) {
-      sql += `, IsPublished = :isPublished`;
-      params.isPublished = isPublished;
-    }
-    
-    sql += ` WHERE TechnologyID = :id`;
-    return await db.execute(sql, params);
-  }
-
-  async linkToProfile({ profileId, technologyId, priorityLevel }) {
-    const sql = `
-      INSERT INTO ProfileTechnologies (ProfileID, TechnologyID, PriorityLevel)
-      VALUES (:profileId, :technologyId, :priorityLevel)
-    `;
-    return await db.execute(sql, { profileId, technologyId, priorityLevel });
-  }
-}
-
-module.exports = new TechnologyRepository();
+module.exports = technologyRepository;

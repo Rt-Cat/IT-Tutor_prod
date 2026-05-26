@@ -1,47 +1,126 @@
-const db = require('../config/db');
+const progressRepository = require('../repositories/progressRepository');
+const courseRepository = require('../repositories/courseRepository');
+const { executeQuery, oracledb } = require('../db');
 
-class StudentController {
-  async getDashboardData(req, res, next) {
+const studentController = {
+  // Get enrolled courses with progress
+  async getEnrolledCourses(req, res, next) {
     try {
-      const userId = req.user.userId;
+      const courses = await courseRepository.getCoursesWithTasks(req.user.id);
+      res.json(courses);
+    } catch (error) {
+      next(error);
+    }
+  },
 
-      // 1. Персональний прогрес (Активні/Пройдені таски з прив'язкою до технологій)
-      const progressSql = `
-        SELECT 
-          p.Status, p.Score, p.Attempts, p.StartedAt, p.CompletedAt,
-          t.Title AS TaskTitle, t.Difficulty,
-          c.Title AS CourseTitle,
-          tech.Name AS TechName
-        FROM Progress p
-        JOIN Tasks t ON p.TaskID = t.TaskID
-        JOIN Courses c ON t.CourseID = c.CourseID
-        JOIN Technologies tech ON c.TechnologyID = tech.TechnologyID
-        WHERE p.UserID = :userId
-        ORDER BY p.UpdatedAt DESC
-      `;
-      const progressResult = await db.execute(progressSql, { userId });
+  // Get all progress
+  async getProgress(req, res, next) {
+    try {
+      const progress = await progressRepository.getUserProgress(req.user.id);
+      res.json(progress);
+    } catch (error) {
+      next(error);
+    }
+  },
 
-      // 2. Scoreboard (Рейтинг Топ-10 студентів за сумарним балом)
-      const scoreboardSql = `
-        SELECT 
-          u.UserID, u.Email, SUM(p.Score) as TotalScore
-        FROM Users u
-        JOIN Progress p ON u.UserID = p.UserID
-        WHERE u.Role = 'student'
-        GROUP BY u.UserID, u.Email
-        ORDER BY TotalScore DESC
-        FETCH FIRST 10 ROWS ONLY
-      `;
-      const scoreboardResult = await db.execute(scoreboardSql, {});
+  // Submit task solution
+  async submitTask(req, res, next) {
+    try {
+      const { taskId, code } = req.body;
+
+      if (!taskId || !code) {
+        return res.status(400).json({ error: 'Task ID and code are required' });
+      }
+
+      const submissionId = await progressRepository.submitTask(req.user.id, taskId, code);
+
+      res.status(201).json({
+        message: 'Solution submitted successfully',
+        submissionId,
+        status: 'pending'
+      });
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  // Get submission history
+  async getSubmissions(req, res, next) {
+    try {
+      const { page, limit } = req.query;
+      const submissions = await progressRepository.getUserSubmissions(req.user.id, {
+        page: parseInt(page) || 1,
+        limit: parseInt(limit) || 20
+      });
+      res.json(submissions);
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  // Get rank/score
+  async getRank(req, res, next) {
+    try {
+      const rankPoints = await progressRepository.getRankPoints(req.user.id);
+
+      // Calculate rank level
+      let level = 'Beginner';
+      if (rankPoints >= 1000) level = 'Expert';
+      else if (rankPoints >= 500) level = 'Advanced';
+      else if (rankPoints >= 100) level = 'Intermediate';
 
       res.json({
-        myProgress: progressResult.rows,
-        scoreboard: scoreboardResult.rows
+        rankPoints,
+        level,
+        nextLevelAt: rankPoints < 100 ? 100 : rankPoints < 500 ? 500 : rankPoints < 1000 ? 1000 : null
       });
-    } catch (err) {
-      next(err);
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  // Request instructor role
+  async requestInstructorRole(req, res, next) {
+    try {
+      const rankPoints = await progressRepository.getRankPoints(req.user.id);
+
+      // Check if meets requirements
+      if (rankPoints < 500) {
+        return res.status(400).json({
+          error: 'Insufficient rank points',
+          message: `You need at least 500 rank points to request instructor role. Current: ${rankPoints}`
+        });
+      }
+
+      // Check if already requested
+      const existingRequest = await executeQuery(
+        `SELECT REQUEST_ID FROM ROLE_REQUESTS WHERE USER_ID = :userId AND STATUS = 'pending'`,
+        [req.user.id]
+      );
+
+      if (existingRequest.rows.length > 0) {
+        return res.status(400).json({ error: 'You already have a pending request' });
+      }
+
+      // Create request
+      const sql = `
+        INSERT INTO ROLE_REQUESTS (USER_ID, REQUESTED_ROLE, STATUS, CREATED_AT)
+        VALUES (:userId, 'instructor', 'pending', SYSDATE)
+        RETURNING REQUEST_ID INTO :requestId
+      `;
+      const result = await executeQuery(sql, {
+        userId: req.user.id,
+        requestId: { type: oracledb.NUMBER, dir: oracledb.BIND_OUT }
+      });
+
+      res.status(201).json({
+        message: 'Instructor role request submitted',
+        requestId: result.outBinds.requestId[0]
+      });
+    } catch (error) {
+      next(error);
     }
   }
-}
+};
 
-module.exports = new StudentController();
+module.exports = studentController;
