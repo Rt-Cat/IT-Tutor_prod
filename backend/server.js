@@ -2,7 +2,7 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const cookieParser = require('cookie-parser');
-const { initializePool, closePool } = require('./db');
+const { initializePool, closePool } = require('./src/config/db');
 const errorHandler = require('./middleware/errorHandler');
 
 // Import routes
