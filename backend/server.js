@@ -3,16 +3,16 @@ const express = require('express');
 const cors = require('cors');
 const cookieParser = require('cookie-parser');
 const { initializePool, closePool } = require('./src/config/db');
-const errorHandler = require('./middleware/errorHandler');
+const errorHandler = require('./src/middleware/errorHandler');
 
 // Import routes
-const authRoutes = require('./routes/authRoutes');
-const dashboardRoutes = require('./routes/dashboardRoutes');
-const learningRoutes = require('./routes/learningRoutes');
-const profileRoutes = require('./routes/profileRoutes');
-const studentRoutes = require('./routes/studentRoutes');
-const adminRoutes = require('./routes/adminRoutes');
-const moderatorRoutes = require('./routes/moderatorRoutes');
+const authRoutes = require('./src/routes/authRoutes');
+const dashboardRoutes = require('./src/routes/dashboardRoutes');
+const learningRoutes = require('./src/routes/learningRoutes');
+const profileRoutes = require('./src/routes/profileRoutes');
+const studentRoutes = require('./src/routes/studentRoutes');
+const adminRoutes = require('./src/routes/adminRoutes');
+const moderatorRoutes = require('./src/routes/moderatorRoutes');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
