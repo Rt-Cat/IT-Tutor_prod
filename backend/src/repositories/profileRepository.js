@@ -1,4 +1,4 @@
-const { executeQuery, oracledb } = require('../db');
+const { executeQuery, oracledb } = require('../config/db');
 
 const profileRepository = {
   // Get all profiles for a user

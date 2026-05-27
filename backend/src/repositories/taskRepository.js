@@ -1,4 +1,4 @@
-const { executeQuery, executeWithClob, oracledb } = require('../db');
+const { executeQuery, executeWithClob, oracledb } = require('../config/db');
 
 const taskRepository = {
   // Get all tasks with filters

@@ -1,55 +1,59 @@
 version: '3.8'
 
+# Створюємо іменовану мережу, до якої пізніше підключиться фронтенд
 networks:
   platform_network:
+    name: platform_network
     driver: bridge
 
 services:
+  # Container 1: Oracle Database
   database:
-    # Заміна на перевірений та стабільний образ Oracle 21c XE
     image: gvenzl/oracle-free:latest
     container_name: llm_platform_db
     ports:
       - "1521:1521"
     environment:
-      - ORACLE_PASSWORD=${DB_PASSWORD}
+      - ORACLE_PASSWORD=@8ffzPFnUbfM
       - ORACLE_HOSTNAME=localhost
     volumes:
       - ./database/data:/user/gvenzl/oradata
-      # У цьому образі папка для автоматичних скриптів трохи інша:
       - ./database/schema.sql:/container-entrypoint-initdb.d/schema.sql
     networks:
       - platform_network
     healthcheck:
-      test: ["CMD-SHELL", "rc=0; echo 'exit' | sqlplus -L sys/${DB_PASSWORD}@localhost:1521/FREE as sysdba || rc=$$?; [ $$rc -eq 0 ]"]
+      test: ["CMD-SHELL", "rc=0; echo 'exit' | sqlplus -L sys/my_oracle_strong_password@localhost:1521/FREE as sysdba || rc=$$?; [ $$rc -eq 0 ]"]
       interval: 15s
       timeout: 10s
       retries: 10
       start_period: 60s
     restart: always
 
-  # Container 2: Business Logic & Data Repositories (Express API)
+  # Container 2: Node.js & Express API
   backend:
     build:
-      context: ./backend
-      dockerfile: Dockerfile
+      context: ./backend # Контекст - поточна папка бекенду
+      dockerfile: Dockerfile.dev
     container_name: llm_platform_api
     ports:
       - "5000:5000"
     environment:
-      - NODE_ENV=${NODE_ENV}
-      - PORT=${PORT}
-      - DB_USER=${DB_USER}
-      - DB_PASSWORD=${DB_PASSWORD}
-      - DB_CONNECT_STRING=${DB_CONNECT_STRING} # References the 'database' service container name
-      - JWT_SECRET=${JWT_SECRET}
+      - NODE_ENV=development
+      - PORT=5000
+      - HOST=0.0.0.0
+      - DB_USER=AI_MENTOR
+      - DB_PASSWORD=@8ffzPFnUbfM
+      - DB_CONNECT_STRING=database:1521/FREEPDB1 # Вказує на контейнер БД
+      - JWT_SECRET=r_gL46P*Yd*GgvBEyd.yM3DX_upqyanZ
+      - FRONTEND_URL=http://localhost:3001,http://localhost:3002
     volumes:
-      - ./backend:/usr/src/app
+      - .:/usr/src/app
       - /usr/src/app/node_modules
     networks:
       - platform_network
     depends_on:
-      - database
+      database:
+        condition: service_healthy # Чекаємо, поки БД повністю запуститься
     restart: always
 
   # Container 3: Web Server & Interface Renderer (EJS UI)

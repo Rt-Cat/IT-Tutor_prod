@@ -1,6 +1,6 @@
 const progressRepository = require('../repositories/progressRepository');
 const courseRepository = require('../repositories/courseRepository');
-const { executeQuery, oracledb } = require('../db');
+const { executeQuery, oracledb } = require('../config/db');
 
 const studentController = {
   // Get enrolled courses with progress

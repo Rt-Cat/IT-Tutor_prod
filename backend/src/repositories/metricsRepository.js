@@ -1,4 +1,4 @@
-const { executeQuery } = require('../db');
+const { executeQuery } = require('../config/db');
 
 const metricsRepository = {
   // Get dashboard metrics

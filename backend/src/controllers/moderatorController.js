@@ -1,6 +1,6 @@
 const taskRepository = require('../repositories/taskRepository');
 const userRepository = require('../repositories/userRepository');
-const { executeQuery, oracledb } = require('../db');
+const { executeQuery, oracledb } = require('../config/db');
 
 const moderatorController = {
   // Get pending tasks

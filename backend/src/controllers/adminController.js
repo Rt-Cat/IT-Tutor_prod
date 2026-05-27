@@ -2,7 +2,7 @@ const userRepository = require('../repositories/userRepository');
 const metricsRepository = require('../repositories/metricsRepository');
 const subscriptionRepository = require('../repositories/subscriptionRepository');
 const technologyRepository = require('../repositories/technologyRepository');
-const { executeQuery } = require('../db');
+const { executeQuery } = require('../config/db');
 
 const adminController = {
   // Get all users
