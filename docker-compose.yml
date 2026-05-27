@@ -47,13 +47,13 @@ services:
       - JWT_SECRET=r_gL46P*Yd*GgvBEyd.yM3DX_upqyanZ
       - FRONTEND_URL=http://localhost:3001,http://localhost:3002
     volumes:
-      - .:/usr/src/app
+      - ./backend:/usr/src/app
       - /usr/src/app/node_modules
     networks:
       - platform_network
     depends_on:
       database:
-        condition: service_healthy # Чекаємо, поки БД повністю запуститься
+        condition: service_started # Чекаємо, поки БД повністю запуститься
     restart: always
 
   # Container 3: Web Server & Interface Renderer (EJS UI)

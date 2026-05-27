@@ -259,27 +259,27 @@ CREATE INDEX idx_llmsessions_model ON LLMSessions(ModelName);
 -- =========================================================================
 -- INITIAL WORKSPACE core SEED DATA
 -- =========================================================================
-INSERT INTO SubscriptionPlans (Name, Description, MonthlyPrice, HasFullAccess, HasPartialAccess, DailyLLMLimit) VALUES ('FREE', 'Limited access to free tasks', 0, 0, 0, 10);
-INSERT INTO SubscriptionPlans (Name, Description, MonthlyPrice, HasFullAccess, HasPartialAccess, DailyLLMLimit) VALUES ('PRO', 'Partial access to premium tasks', 19.99, 0, 1, 500);
-INSERT INTO SubscriptionPlans (Name, Description, MonthlyPrice, HasFullAccess, HasPartialAccess, DailyLLMLimit) VALUES ('ENTERPRISE', 'Full access to all tasks and advanced AI', 49.99, 1, 1, 5000);
+INSERT INTO SubscriptionPlans (Name, Description, MonthlyPrice, HasFullAccess, DailyLLMLimit) VALUES ('FREE', 'Limited access to free tasks', 0, 0, 10);
+INSERT INTO SubscriptionPlans (Name, Description, MonthlyPrice, HasFullAccess, DailyLLMLimit) VALUES ('PRO', 'Partial access to premium tasks', 19.99, 0, 500);
+INSERT INTO SubscriptionPlans (Name, Description, MonthlyPrice, HasFullAccess, DailyLLMLimit) VALUES ('ENTERPRISE', 'Full access to all tasks and advanced AI', 49.99, 1, 5000);
 
 INSERT INTO Technologies (Name, Category, Description) VALUES ('Python', 'Backend', 'Python development'); -- 1
 INSERT INTO Technologies (Name, Category, Description) VALUES ('Oracle SQL', 'DB', 'SQL mastery'); -- 2
 INSERT INTO Technologies (Name, Category, Description) VALUES ('Node.js', 'Web', 'Server-side JS'); -- 3
 INSERT INTO Technologies (Name, Category, Description) VALUES ('React', 'Frontend', 'UI library'); -- 4
 
-INSERT INTO Courses (TechnologyID, Title, CreatedBy) VALUES (21, 'Python Fundamentals', 4);
-INSERT INTO Courses (TechnologyID, Title, CreatedBy) VALUES (21, 'Python Advanced', 6);
-INSERT INTO Courses (TechnologyID, Title, CreatedBy) VALUES (22, 'SQL Intro', 4);
-INSERT INTO Courses (TechnologyID, Title, CreatedBy) VALUES (22, 'SQL Tuning', 6);
-INSERT INTO Courses (TechnologyID, Title, CreatedBy) VALUES (23, 'Node.js Express', 4);
-INSERT INTO Courses (TechnologyID, Title, CreatedBy) VALUES (23, 'Async Patterns', 6);
-INSERT INTO Courses (TechnologyID, Title, CreatedBy) VALUES (24, 'React Hooks', 4);
-INSERT INTO Courses (TechnologyID, Title, CreatedBy) VALUES (24, 'React Redux', 6);
+INSERT INTO Courses (TechnologyID, Title, CreatedBy) VALUES (1, 'Python Fundamentals', 4);
+INSERT INTO Courses (TechnologyID, Title, CreatedBy) VALUES (1, 'Python Advanced', 6);
+INSERT INTO Courses (TechnologyID, Title, CreatedBy) VALUES (2, 'SQL Intro', 4);
+INSERT INTO Courses (TechnologyID, Title, CreatedBy) VALUES (2, 'SQL Tuning', 6);
+INSERT INTO Courses (TechnologyID, Title, CreatedBy) VALUES (3, 'Node.js Express', 4);
+INSERT INTO Courses (TechnologyID, Title, CreatedBy) VALUES (3, 'Async Patterns', 6);
+INSERT INTO Courses (TechnologyID, Title, CreatedBy) VALUES (4, 'React Hooks', 4);
+INSERT INTO Courses (TechnologyID, Title, CreatedBy) VALUES (4, 'React Redux', 6);
 
 BEGIN
-    FOR c IN 29..36 LOOP
-        FOR t IN 21..24 LOOP
+    FOR c IN 1..8 LOOP
+        FOR t IN 1..4 LOOP
             INSERT INTO Tasks (CourseID, Title, TaskDescription, Difficulty) 
             VALUES (c, 'Task ' || t || ' for Course ' || c, 'Content of task ' || t, 'easy');
         END LOOP;
@@ -290,10 +290,10 @@ END;
 INSERT INTO Profiles (ProfileName, Description, AIThinkingMode) VALUES ('Fast Learner', 'Optimized for speed', 'reactive'); -- ID 1
 INSERT INTO Profiles (ProfileName, Description, AIThinkingMode) VALUES ('Deep Researcher', 'Deep thinking mode', 'reasoning'); -- ID 2
 INSERT INTO Profiles (ProfileName, Description, AIThinkingMode) VALUES ('Code Reviewer', 'Strict code focus', 'reasoning'); -- ID 3
-INSERT INTO ProfileTechnologies (ProfileID, TechnologyID) VALUES (1, 21);
-INSERT INTO ProfileTechnologies (ProfileID, TechnologyID) VALUES (2, 22);
-INSERT INTO ProfileTechnologies (ProfileID, TechnologyID) VALUES (3, 23);
-INSERT INTO ProfileTechnologies (ProfileID, TechnologyID) VALUES (1, 24);
+INSERT INTO ProfileTechnologies (ProfileID, TechnologyID) VALUES (1, 1);
+INSERT INTO ProfileTechnologies (ProfileID, TechnologyID) VALUES (2, 2);
+INSERT INTO ProfileTechnologies (ProfileID, TechnologyID) VALUES (3, 3);
+INSERT INTO ProfileTechnologies (ProfileID, TechnologyID) VALUES (1, 4);
 
 INSERT INTO TaskPrompts (TaskID, PromptType, PromptContent) 
 SELECT TaskID, 'instruction', 'Solve this task carefully' FROM Tasks WHERE MOD(TaskID, 2) = 0;
