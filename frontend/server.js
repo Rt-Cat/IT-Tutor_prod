@@ -145,6 +145,7 @@ app.post('/auth/login', async (req, res) => {
   
   res.cookie('token', data.token, { httpOnly: true });
   res.cookie('role', data.user.role);
+  res.cookie('userId', data.user.userId);
 
   if (data.user.role === 'admin') return res.redirect('/admin/main');
   if (data.user.role === 'moderator') return res.redirect('/moderator/main');
@@ -170,6 +171,63 @@ app.get('/student/dashboard', authorize(['student', 'instructor', 'moderator', '
     progress: data.myProgress || [], 
     scoreboard: data.scoreboard || [] 
   });
+});
+
+// ... ваші інші роути ...
+
+// Проксі для завантаження ZIP-архіву з сертифікатами
+app.get('/student/certificates/download', authorize(['student', 'instructor', 'moderator', 'admin']), async (req, res) => {
+    try {
+        const token = req.cookies.token;
+        // Зверніть увагу: тут ми не парсимо JSON, а отримуємо потік даних (stream)
+        
+        // Оскільки в нас мікросервіси, фронтенд повинен звернутися до бекенду
+        // userId можна дістати з розшифрованого токена у вашому middleware authorize
+        const userId = req.cookies.userId; 
+        
+        const backendUrl = `${process.env.API_URL}/certificates/download/${userId}`;
+
+        // Робимо запит до бекенду
+        const response = await fetch(backendUrl, {
+           headers: { 'authorization': `Bearer ${token}` } // Або 'Authorization': `Bearer ${token}`
+        });
+
+        if (!response.ok) {
+            return res.status(response.status).json({ error: 'Сертифікати ще не згенеровані або відсутні' });
+        }
+
+        // Передаємо заголовки для скачування файлу
+        res.setHeader('Content-Type', 'application/zip');
+        res.setHeader('Content-Disposition', `attachment; filename="certificates_${userId}.zip"`);
+
+        // Перенаправляємо (pipe) потік файлу з бекенду прямо клієнту
+        const arrayBuffer = await response.arrayBuffer();
+        const buffer = Buffer.from(arrayBuffer);
+        res.end(buffer);
+    } catch (error) {
+        console.error('Frontend Error downloading certs:', error);
+        res.status(500).json({ error: 'Внутрішня помилка при завантаженні файлу' });
+    }
+});
+
+app.post('/student/certificates/trigger', authorize(['student', 'instructor', 'moderator', 'admin']), async (req, res) => {
+    try {
+        const token = req.cookies.token;
+        const userId = req.cookies.userId;
+        
+        const backendUrl = `${API_URL}/certificates/trigger/${userId}`;
+        
+        const response = await fetch(backendUrl, {
+            method: 'POST',
+            headers: { 'authorization': `Bearer ${token}` }
+        });
+        
+        const data = await response.json();
+        res.status(response.status).json(data);
+    } catch (error) {
+        console.error('Frontend Trigger Error:', error);
+        res.status(500).json({ error: 'Внутрішня помилка проксі-сервера' });
+    }
 });
 
 app.get('/student/workspace', authorize(['student', 'instructor', 'moderator', 'admin']), async (req, res) => {

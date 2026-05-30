@@ -1,6 +1,8 @@
 const express = require('express');
 const db = require('./src/config/db');
 const errorHandler = require('./src/middleware/errorHandler');
+const { connectRabbitMQ } = require('./src/utils/rabbitmq'); // ДОДАНО
+const certificateRoutes = require('./src/routes/certificateRoutes'); // ДОДАНО
 require('dotenv').config();
 
 const app = express();
@@ -27,6 +29,8 @@ app.use('/api/dashboard', require('./src/routes/dashboardRoutes'));
 app.use('/api/learning', require('./src/routes/learningRoutes'));
 app.use('/api/profiles', require('./src/routes/profileRoutes'));
 app.use('/api/admin', require('./src/routes/dashboardRoutes'));
+app.use('/api/student', require('./src/routes/studentRoutes'));
+app.use('/api/certificates', certificateRoutes);
 
 // Fallback Unhandled Route Handler
 app.use((req, res, next) => {
@@ -41,6 +45,7 @@ async function bootSystem() {
   try {
     // Spin up connection pooling matrix before handling user endpoints
     await db.initializePool();
+    await connectRabbitMQ();
     app.listen(PORT, () => {
       console.log(`[API Engine Engine Live]: Securely handling connections on port ${PORT}`);
     });

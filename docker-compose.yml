@@ -2,6 +2,7 @@ version: '3.8'
 
 networks:
   platform_network:
+    name: platform_network
     driver: bridge
 
 services:
@@ -15,7 +16,7 @@ services:
       - ORACLE_PASSWORD=${DB_PASSWORD}
       - ORACLE_HOSTNAME=localhost
     volumes:
-      - ./database/data:/user/gvenzl/oradata
+      - ./database/data:/opt/oracle/oradata
       # У цьому образі папка для автоматичних скриптів трохи інша:
       - ./database/schema.sql:/container-entrypoint-initdb.d/schema.sql
     networks:
@@ -26,6 +27,37 @@ services:
       timeout: 10s
       retries: 10
       start_period: 60s
+    restart: always
+
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: llm_platform_rmq
+    ports:
+      - "5672:5672"   # Стандартний порт для підключення
+      - "15672:15672" # UI панель керування (admin/admin)
+    networks:
+      - platform_network
+    healthcheck:
+      test: rabbitmq-diagnostics -q ping
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: always
+
+  # --- 3. PYTHON WORKER (НОВИЙ) ---
+  cert_worker:
+    build:
+      context: ./worker # Папка з кодом воркера
+    container_name: llm_platform_cert_worker
+    environment:
+      - RABBITMQ_URL=amqp://rabbitmq:5672/
+    volumes:
+      - certs_volume:/app/certs # Спільна папка для сертифікатів
+    networks:
+      - platform_network
+    depends_on:
+      rabbitmq:
+        condition: service_healthy # Чекаємо на запуск RabbitMQ
     restart: always
 
   # Container 2: Business Logic & Data Repositories (Express API)
@@ -43,13 +75,18 @@ services:
       - DB_PASSWORD=${DB_PASSWORD}
       - DB_CONNECT_STRING=${DB_CONNECT_STRING} # References the 'database' service container name
       - JWT_SECRET=${JWT_SECRET}
+      - RABBITMQ_URL=amqp://rabbitmq:5672/
     volumes:
       - ./backend:/usr/src/app
       - /usr/src/app/node_modules
+      - certs_volume:/usr/src/app/certs
     networks:
       - platform_network
     depends_on:
-      - database
+      database:
+        condition: service_started
+      rabbitmq:
+        condition: service_healthy
     restart: always
 
   # Container 3: Web Server & Interface Renderer (EJS UI)
@@ -72,3 +109,6 @@ services:
     depends_on:
       - backend
     restart: always
+
+volumes:
+  certs_volume:

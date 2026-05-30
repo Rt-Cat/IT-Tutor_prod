@@ -1,7 +1,18 @@
 <%- include('../partials/header') %>
 <div class="dashboard-wrapper">
-    <h3>Кабінет студента</h3>
-    <p class="subtitle">Ваша персональна статистика та глобальний рейтинг платформи.</p>
+    
+    <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 1rem;">
+        <div>
+            <h3 style="margin-bottom: 0.5rem;">Кабінет студента</h3>
+            <p class="subtitle" style="margin-top: 0;">Ваша персональна статистика та глобальний рейтинг платформи.</p>
+        </div>
+        
+        <button id="downloadCertsBtn" 
+                onclick="downloadCertificates()" 
+                style="background-color: #27ae60; color: white; padding: 0.75rem 1.5rem; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; display: flex; align-items: center; gap: 0.5rem; transition: opacity 0.2s;">
+            🎓 Завантажити мої сертифікати
+        </button>
+    </div>
     
     <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 2rem; margin-top: 2rem;">
         
@@ -48,7 +59,8 @@
                         <div style="display: flex; justify-content: space-between; align-items: center; padding-bottom: 0.5rem; border-bottom: 1px solid var(--border);">
                             <div>
                                 <span style="color: var(--text-muted); margin-right: 10px;">#<%= index + 1 %></span>
-                                <strong><%= user.EMAIL.split('@')[0] %></strong> </div>
+                                <strong><%= user.EMAIL.split('@')[0] %></strong> 
+                            </div>
                             <div style="color: var(--success); font-weight: 600;"><%= user.TOTALSCORE %> балів</div>
                         </div>
                     <% }) %>
@@ -60,4 +72,143 @@
 
     </div>
 </div>
+
+<script>
+    // Функція для створення зникаючого повідомлення (Toast)
+    function showToast(message, type = 'info') {
+        const toast = document.createElement('div');
+        toast.textContent = message;
+        toast.style.position = 'fixed';
+        toast.style.bottom = '30px';
+        toast.style.right = '30px';
+        toast.style.backgroundColor = type === 'success' ? '#10b981' : '#3b82f6';
+        toast.style.color = 'white';
+        toast.style.padding = '14px 28px';
+        toast.style.borderRadius = '8px';
+        toast.style.boxShadow = '0 10px 15px -3px rgba(0,0,0,0.1)';
+        toast.style.zIndex = '9999';
+        toast.style.fontWeight = 'bold';
+        toast.style.opacity = '0';
+        toast.style.transform = 'translateY(20px)';
+        toast.style.transition = 'all 0.4s ease';
+        
+        document.body.appendChild(toast);
+
+        // Анімація появи
+        setTimeout(() => {
+            toast.style.opacity = '1';
+            toast.style.transform = 'translateY(0)';
+        }, 10);
+
+        // Анімація зникнення
+        setTimeout(() => { 
+            toast.style.opacity = '0'; 
+            toast.style.transform = 'translateY(20px)';
+        }, 4000);
+        
+        setTimeout(() => { document.body.removeChild(toast); }, 4500);
+    }
+
+    // Головна функція, що спрацьовує по кліку
+    async function downloadCertificates() {
+        const btn = document.getElementById('downloadCertsBtn');
+        const originalText = '🎓 Завантажити мої сертифікати';
+        
+        try {
+            btn.innerHTML = '⏳ Перевірка...';
+            btn.disabled = true;
+            btn.style.opacity = '0.7';
+
+            // 1. Стукаємо на бекенд для перевірки та запуску тригера
+            const triggerRes = await fetch('/student/certificates/trigger', { method: 'POST' });
+            const triggerData = await triggerRes.json();
+
+            if (!triggerRes.ok) throw new Error(triggerData.error || 'Помилка перевірки сертифікатів');
+
+            if (triggerData.status === 'empty') {
+                alert('У вас ще немає повністю завершених курсів для отримання сертифікату.');
+                resetButton(btn, originalText);
+                return;
+            }
+
+            if (triggerData.status === 'generating') {
+                // Показуємо зникаюче повідомлення!
+                showToast('⏳ Генеруються сертифікати... Будь ласка, зачекайте.', 'info');
+                btn.innerHTML = '⏳ Генерація PDF...';
+                
+                // Даємо воркеру 3 секунди на створення файлів перед першою спробою завантаження
+                setTimeout(() => {
+                    pollAndDownload(btn, originalText);
+                }, 3000);
+            } else {
+                // Якщо статус 'ready' — відразу качаємо
+                await executeDownload();
+                resetButton(btn, originalText);
+            }
+
+        } catch (error) {
+            console.error(error);
+            alert(error.message);
+            resetButton(btn, originalText);
+        }
+    }
+
+    // Функція циклічного опитування (чекає, поки архів стане доступним)
+    async function pollAndDownload(btn, originalText) {
+        let attempts = 0;
+        const maxAttempts = 5; // Пробуємо 5 разів з інтервалом в 2 сек (загалом 10 секунд)
+
+        const interval = setInterval(async () => {
+            attempts++;
+            try {
+                const response = await fetch('/student/certificates/download', { method: 'GET' });
+                
+                if (response.ok) {
+                    clearInterval(interval);
+                    await handleBlobDownload(response);
+                    resetButton(btn, originalText);
+                    showToast('✅ Сертифікати успішно завантажено!', 'success');
+                } else if (attempts >= maxAttempts) {
+                    clearInterval(interval);
+                    alert('Час очікування генерації вичерпано. Спробуйте натиснути кнопку завантаження ще раз.');
+                    resetButton(btn, originalText);
+                }
+            } catch (e) {
+                // Якщо помилка мережі, просто продовжуємо пробувати
+                console.log('Очікування воркера...', e);
+            }
+        }, 2000);
+    }
+
+    // Функція безпосереднього завантаження архіву
+    async function executeDownload() {
+        const response = await fetch('/student/certificates/download', { method: 'GET' });
+        if (!response.ok) {
+            const err = await response.json();
+            throw new Error(err.error || 'Помилка завантаження архіву');
+        }
+        await handleBlobDownload(response);
+        showToast('✅ Архів успішно завантажено!', 'success');
+    }
+
+    // Конвертація потоку в файл
+    async function handleBlobDownload(response) {
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.style.display = 'none';
+        a.href = url;
+        a.download = 'my_certificates.zip'; 
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+    }
+
+    function resetButton(btn, text) {
+        btn.innerHTML = text;
+        btn.disabled = false;
+        btn.style.opacity = '1';
+    }
+</script>
+
 <%- include('../partials/footer') %>

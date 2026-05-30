@@ -2,6 +2,8 @@
 <nav class="main-navigation" style="display: flex; gap: 1rem; align-items: center; width: 100%;">
     
     <% if (userRole === 'student' || userRole === 'instructor') { %>
+        <a href="/student/dashboard" style="font-weight: 600; color: var(--accent);">Кабінет студента</a>
+        
         <a href="/student/workspace">Робоче оточення (Workspace)</a>
         <a href="/student/profiles">Конфігурації ШІ</a>
     <% } %>
