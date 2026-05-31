@@ -87,7 +87,7 @@ const getSubscriptionsList = async (req, res, next) => {
 // Додайте нові методи для CRUD-операцій модератора:
 const createSubscriptionPlan = async (req, res, next) => {
   try {
-    const payload = { ...req.body, hasFullAccess: req.body.hasFullAccess ? 1 : 0, hasPartialAccess: req.body.hasPartialAccess ? 1 : 0 };
+    const payload = { ...req.body, hasFullAccess: req.body.hasFullAccess ? 1 : 0};
     await subscriptionRepository.createPlan(payload);
     res.json({ message: 'План створено' });
   } catch (err) { next(err); }
@@ -95,7 +95,7 @@ const createSubscriptionPlan = async (req, res, next) => {
 
 const updateSubscriptionPlan = async (req, res, next) => {
   try {
-    const payload = { ...req.body, hasFullAccess: req.body.hasFullAccess ? 1 : 0, hasPartialAccess: req.body.hasPartialAccess ? 1 : 0 };
+    const payload = { ...req.body, hasFullAccess: req.body.hasFullAccess ? 1 : 0};
     await subscriptionRepository.updatePlan(req.params.id, payload);
     res.json({ message: 'План оновлено' });
   } catch (err) { next(err); }

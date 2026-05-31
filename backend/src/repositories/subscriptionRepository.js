@@ -60,22 +60,22 @@ class SubscriptionRepository {
   }
 
   // --- УПРАВЛІННЯ ПЛАНАМИ (SubscriptionPlans) ---
-  async createPlan({ name, description, monthlyPrice, hasFullAccess, hasPartialAccess, dailyLlmLimit }) {
+  async createPlan({ name, description, monthlyPrice, hasFullAccess, dailyLlmLimit }) {
     const sql = `
-      INSERT INTO SubscriptionPlans (Name, Description, MonthlyPrice, HasFullAccess, HasPartialAccess, DailyLLMLimit)
-      VALUES (:name, :description, :monthlyPrice, :hasFullAccess, :hasPartialAccess, :dailyLlmLimit)
+      INSERT INTO SubscriptionPlans (Name, Description, MonthlyPrice, HasFullAccess, DailyLLMLimit)
+      VALUES (:name, :description, :monthlyPrice, :hasFullAccess, :dailyLlmLimit)
     `;
-    return await db.execute(sql, { name, description, monthlyPrice, hasFullAccess, hasPartialAccess, dailyLlmLimit });
+    return await db.execute(sql, { name, description, monthlyPrice, hasFullAccess, dailyLlmLimit });
   }
 
-  async updatePlan(planId, { name, description, monthlyPrice, hasFullAccess, hasPartialAccess, dailyLlmLimit }) {
+  async updatePlan(planId, { name, description, monthlyPrice, hasFullAccess, dailyLlmLimit }) {
     const sql = `
       UPDATE SubscriptionPlans 
       SET Name = :name, Description = :description, MonthlyPrice = :monthlyPrice, 
-          HasFullAccess = :hasFullAccess, HasPartialAccess = :hasPartialAccess, DailyLLMLimit = :dailyLlmLimit
+          HasFullAccess = :hasFullAccess, DailyLLMLimit = :dailyLlmLimit
       WHERE PlanID = :planId
     `;
-    return await db.execute(sql, { planId, name, description, monthlyPrice, hasFullAccess, hasPartialAccess, dailyLlmLimit });
+    return await db.execute(sql, { planId, name, description, monthlyPrice, hasFullAccess, dailyLlmLimit });
   }
 
   // --- УПРАВЛІННЯ ПІДПИСКАМИ КОРИСТУВАЧІВ ---
