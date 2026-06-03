@@ -1,5 +1,6 @@
 const express = require('express');
 const cookieParser = require('cookie-parser');
+const trackAnalytics = require('./src/middleware/analytics.middleware');
 require('dotenv').config();
 
 const app = express();
@@ -9,6 +10,7 @@ const API_URL = process.env.API_URL || 'http://backend:5000/api';
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
+app.use(trackAnalytics);
 
 // Автоматичне інжектування токена та ролі у контекст рендерингу EJS
 app.use((req, res, next) => {
@@ -157,6 +159,7 @@ app.post('/auth/login', async (req, res) => {
 app.get('/auth/logout', (req, res) => {
   res.clearCookie('token');
   res.clearCookie('role');
+  res.clearCookie('userId');
   res.redirect('/auth/login');
 });
 
@@ -450,6 +453,35 @@ app.post('/admin/users/register', authorize(['admin']), async (req, res) => {
   const token = req.cookies.token;
   await makeRequest('/admin/users', 'POST', req.body, token);
   res.redirect('/admin/users');
+});
+
+// =========================================================================
+// ГЛОБАЛЬНИЙ ХЕНДЛЕР ПОМИЛКИ 404 ДЛЯ СТОРІНОК ІНТЕРФЕЙСУ (ФРОНТЕНД)
+// =========================================================================
+app.use((req, res) => {
+  console.log(`[FRONTEND 404 ROUTE WARNING]: Користувач перейшов на неіснуючу сторінку -> ${req.method} ${req.originalUrl}`);
+  
+  // Повертаємо статус 404 та рендеримо фірмову сторінку екосистеми IT-Tutor
+  res.status(404).send(`
+    <!DOCTYPE html>
+    <html lang="uk">
+    <head>
+        <meta charset="UTF-8">
+        <title>404 - Сторінку не знайдено</title>
+        <link rel="stylesheet" href="/css/styles.css">
+    </head>
+    <body style="display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; background-color: #f4f7f6; font-family: Arial, sans-serif;">
+        <div style="text-align: center; background: #ffffff; padding: 3rem; border-radius: 8px; border: 1px solid #e74c3c; max-width: 550px; box-shadow: 0 4px 15px rgba(0,0,0,0.06); margin: 20px;">
+            <h1 style="color: #e74c3c; font-size: 4rem; margin: 0; font-weight: bold;">404</h1>
+            <h3 style="color: #2c3e50; margin-top: 10px; font-size: 1.5rem;">Сторінку не знайдено</h3>
+            <p style="color: #7f8c8d; margin-bottom: 2rem; line-height: 1.6; font-size: 15px;">
+                Запитувана сторінка <b style="font-family: monospace; background: rgba(231, 76, 60, 0.08); padding: 3px 6px; border-radius: 4px; color: #c0392b;">${req.originalUrl}</b> відсутня на платформі <b>IT-Tutor</b>, або цей розділ інтерфейсу знаходиться на стадії розробки.
+            </p>
+            <a href="/" style="display: inline-block; text-decoration: none; padding: 12px 24px; background: #2980b9; color: white; border-radius: 4px; font-weight: bold; box-shadow: 0 2px 5px rgba(41,128,185,0.3); transition: background 0.2s;">Повернутися на головну</a>
+        </div>
+    </body>
+    </html>
+  `);
 });
 
 app.listen(PORT, () => console.log(`[Frontend Engine Live]: Interface accessible via http://localhost:${PORT}`));
